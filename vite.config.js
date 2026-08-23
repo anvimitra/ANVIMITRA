@@ -1,7 +1,3 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-
-export default defineConfig({
-  plugins: [react()],
-  base: "/ANVIMITRA/"
-});
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+export default defineConfig({base:'/ANVIMITRA/',plugins:[react()]});
