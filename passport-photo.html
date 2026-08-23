@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b1726">
+<title>Passport Photo Maker | Anvi E-mitra & CSC Centre</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef3f8;color:#10213f}.wrap{max-width:1100px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:18px}.back{color:#0d4d9e;text-decoration:none;font-weight:700}.card{background:#fff;border-radius:20px;padding:24px;box-shadow:0 12px 35px rgba(0,0,0,.1)}h1{margin:0 0 7px;font-size:29px}.sub{margin:0 0 20px;color:#65748a;line-height:1.6}.upload{display:block;border:2px dashed #0d4d9e;border-radius:15px;padding:28px;text-align:center;background:#f7fbff;cursor:pointer}.upload input{display:none}.upload strong{display:block;font-size:18px;margin-bottom:5px}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.btn{border:0;border-radius:10px;padding:13px 18px;font-weight:700;cursor:pointer}.primary{background:#f4b400;color:#111}.dark{background:#071a3a;color:#fff}.btn:disabled{opacity:.5;cursor:not-allowed}.status{margin-top:14px;font-weight:700}.spec{margin-top:12px;color:#667085;font-size:13px;line-height:1.7}.preview{margin-top:22px;background:#dfe5ec;border-radius:14px;padding:14px;overflow:auto;min-height:250px}.sheet{width:793px;height:1123px;background:#fff;position:relative;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,.18)}.sheet img{position:absolute;width:125px;height:135px;object-fit:cover;border:1px solid #111}.empty{height:100%;display:grid;place-items:center;color:#8793a5;font-size:15px}.note{font-size:12px;color:#748196;margin-top:12px}@media(max-width:700px){.wrap{padding:12px}.card{padding:16px}.top{align-items:flex-start;flex-direction:column}.sheet{transform:scale(.42);transform-origin:top left;margin:0 0 -650px 0}.preview{height:500px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a class="back" href="./">← Back to Anvi E-mitra</a></div>
+  <div class="card">
+    <h1>Passport Photo Maker</h1>
+    <p class="sub">Photo upload karo → automatic passport-size crop → A4 sheet par 6 photos top row mein → 300 DPI ready-to-print PDF download.</p>
+    <label class="upload">
+      <strong>📷 Choose / Upload Photo</strong>
+      <span>JPG, PNG, WEBP — photo device se select karein</span>
+      <input id="file" type="file" accept="image/*">
+    </label>
+    <div class="actions">
+      <button id="pdf" class="btn primary" disabled>⬇ Download A4 PDF — 300 DPI</button>
+      <button id="png" class="btn dark" disabled>⬇ Download A4 PNG</button>
+    </div>
+    <div id="status" class="status">No photo selected.</div>
+    <div class="spec"><b>Fixed print size:</b> A4 portrait 2480 × 3508 px @ 300 DPI. Each photo is exactly 390 × 420 px = 1.3 × 1.4 inches. Six photos start from the top-left in one horizontal row; remaining A4 area stays blank.</div>
+    <div class="preview"><div id="sheet" class="sheet"><div class="empty">A4 preview will appear here</div></div></div>
+    <div class="note">Tip: For best result, upload a clear front-facing photo with the face visible. The tool crops only the image framing; it does not change facial features.</div>
+  </div>
+</div>
+<script>
+const A4W=2480,A4H=3508,W=390,H=420;
+const file=document.getElementById('file'),sheet=document.getElementById('sheet'),pdfBtn=document.getElementById('pdf'),pngBtn=document.getElementById('png'),status=document.getElementById('status');
+let cropped=null;
+function cropToRatio(img){
+  const target=W/H;let sw=img.naturalWidth,sh=img.naturalHeight,sx=0,sy=0;
+  if(sw/sh>target){sw=Math.round(sh*target);sx=Math.round((img.naturalWidth-sw)/2)}
+  else{sh=Math.round(sw/target);sy=Math.round((img.naturalHeight-sh)/2)}
+  const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(img,sx,sy,sw,sh,0,0,W,H);return c;
+}
+function renderPreview(){
+  sheet.innerHTML='';const src=cropped.toDataURL('image/jpeg',.96);
+  for(let i=0;i<6;i++){const im=document.createElement('img');im.src=src;im.style.left=(i*W)+'px';im.style.top='0px';sheet.appendChild(im)}
+  pdfBtn.disabled=false;pngBtn.disabled=false;status.textContent='✓ Ready — 6 photos at 1.3 × 1.4 inch.';
+}
+function makeA4(){
+  const c=document.createElement('canvas');c.width=A4W;c.height=A4H;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,A4W,A4H);
+  for(let i=0;i<6;i++){const px=i*W;x.drawImage(cropped,px,0,W,H);x.strokeStyle='#111';x.lineWidth=2;x.strokeRect(px+1,1,W-2,H-2)}
+  return c;
+}
+file.addEventListener('change',()=>{const f=file.files&&file.files[0];if(!f)return;status.textContent='Processing photo…';const url=URL.createObjectURL(f),img=new Image();img.onload=()=>{try{cropped=cropToRatio(img);renderPreview()}catch(e){status.textContent='Could not process this photo.'}URL.revokeObjectURL(url)};img.onerror=()=>{URL.revokeObjectURL(url);status.textContent='Invalid image file.'};img.src=url});
+pngBtn.addEventListener('click',()=>{if(!cropped)return;const a=document.createElement('a');a.href=makeA4().toDataURL('image/png');a.download='Anvi_Passport_Photo_A4_300DPI.png';a.click()});
+function jpegBytes(canvas){const b64=canvas.toDataURL('image/jpeg',.96).split(',')[1],raw=atob(b64),u=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)u[i]=raw.charCodeAt(i);return u}
+function pdfFromJpeg(canvas){
+ const img=jpegBytes(canvas),enc=new TextEncoder(),parts=[],offs=[];let pos=0;
+ const add=s=>{const b=typeof s==='string'?enc.encode(s):s;parts.push(b);pos+=b.length};
+ add('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+ function obj(n,body){offs[n]=pos;add(n+' 0 obj\n'+body+'\nendobj\n')}
+ obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+ obj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+ obj(3,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.2756 841.8898] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>');
+ offs[4]=pos;add('4 0 obj\n<< /Type /XObject /Subtype /Image /Width '+A4W+' /Height '+A4H+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+img.length+' >>\nstream\n');add(img);add('\nendstream\nendobj\n');
+ const stream='q\n595.2756 0 0 841.8898 0 0 cm\n/Im1 Do\nQ\n';obj(5,'<< /Length '+enc.encode(stream).length+' >>\nstream\n'+stream+'endstream');
+ const xref=pos;add('xref\n0 6\n0000000000 65535 f \n');for(let i=1;i<=5;i++)add(String(offs[i]).padStart(10,'0')+' 00000 n \n');add('trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF');return new Blob(parts,{type:'application/pdf'});
+}
+pdfBtn.addEventListener('click',()=>{if(!cropped)return;const blob=pdfFromJpeg(makeA4()),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Anvi_Passport_Photo_A4_300DPI.pdf';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)});
+</script>
+</body>
+</html>
