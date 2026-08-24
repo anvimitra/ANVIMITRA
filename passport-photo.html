@@ -73,18 +73,17 @@ async function makePhoto(file){
   const sw=orig.naturalWidth,sh=orig.naturalHeight,ratio=PW/PH;let cw=sw,ch=sw/ratio,sx=(sw-cw)/2,sy=(sh-ch)*.12;
   if(ch>sh){ch=sh;cw=ch*ratio;sy=0}
   if(face){
-   statusEl.textContent='👤 AI face found — setting wider natural passport framing…';
-   // Wider framing: keep the face comfortably sized while preserving more
-   // shoulders and upper body. The face is an anchor, not the crop itself.
-   const targetFaceRatio=.48;
-   ch=Math.min(sh,Math.max(face.height/targetFaceRatio,face.height*2.05));
+   statusEl.textContent='👤 AI face found — keeping extra headroom and shoulders…';
+   // Use a deliberately wider crop so hair, neck and both shoulders remain visible.
+   // The face is only an anchor; it is not allowed to fill most of the passport frame.
+   const targetFaceRatio=.42;
+   ch=Math.min(sh,Math.max(face.height/targetFaceRatio,face.height*2.38));
    cw=ch*ratio;
    if(cw>sw){cw=sw;ch=cw/ratio}
    const fx=face.x+face.width/2;
    sx=fx-cw/2;
-   // Small headroom above the detected face; this keeps hair/head and shoulders
-   // inside the passport frame instead of cutting tightly around the face.
-   sy=face.y-face.height*.25;
+   // More headroom above the detector box prevents the top of the hair/head being cut.
+   sy=face.y-face.height*.42;
   }
   sx=Math.max(0,Math.min(sw-cw,sx));sy=Math.max(0,Math.min(sh-ch,sy));
   const out=document.createElement('canvas');out.width=PW;out.height=PH;const o=out.getContext('2d');o.imageSmoothingEnabled=true;o.imageSmoothingQuality='high';o.fillStyle='#fff';o.fillRect(0,0,PW,PH);
