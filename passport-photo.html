@@ -1,8 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Passport Photo Maker | ANVI E-Mitra & CSC Centre</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#eef3f8;color:#172033}.box{max-width:1050px;margin:20px auto;background:#fff;padding:22px;border-radius:16px;box-shadow:0 4px 20px #0001}.up{display:block;border:2px dashed #1760a8;border-radius:12px;padding:30px;text-align:center;cursor:pointer;background:#f8fbff}.up input{display:block;margin:14px auto 0;max-width:100%;font-size:16px}.buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}button{padding:12px 18px;border:0;border-radius:9px;font-weight:bold;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.pdf{background:#f4b400}.png{background:#10264d;color:#fff}.status{margin:14px 0;font-weight:bold;line-height:1.45}.note{font-size:13px;color:#667085;line-height:1.5}.preview{overflow:auto;background:#dce3eb;padding:12px;border-radius:10px}.a4{width:793px;height:1123px;background:#fff;position:relative;margin:auto}.p{position:absolute;width:125px;height:135px;object-fit:cover;border:1px solid #111;background:#fff}
@@ -10,8 +9,7 @@
 </head>
 <body>
 <div class="box">
-<a href="./">← Back</a>
-<h1>Passport Photo Maker</h1>
+<a href="./">← Back</a><h1>Passport Photo Maker</h1>
 <p>Upload a photo and create 6 AI-enhanced passport photos on an A4 print sheet.</p>
 <label class="up"><div style="font-size:20px">📷 <b>Choose Photo</b></div><small>JPG / PNG / WEBP</small><input id="file" type="file" accept="image/*"></label>
 <div class="buttons"><button id="pdf" class="pdf" disabled>⬇ Save / Print A4 PDF</button><button id="png" class="png" disabled>⬇ Download A4 PNG</button></div>
@@ -21,129 +19,53 @@
 </div>
 <script>
 const fileInput=document.getElementById('file'),statusEl=document.getElementById('status'),a4=document.getElementById('a4'),pdfBtn=document.getElementById('pdf'),pngBtn=document.getElementById('png');
-const W=2480,H=3508,PW=390,PH=420,G=20,M=20;let photoData='',sheetBlob=null;
-const loadImage=u=>new Promise((r,j)=>{const i=new Image;i.onload=()=>r(i);i.onerror=j;i.src=u});
-let faceDetectorPromise=null;
+const W=2480,H=3508,PW=390,PH=420,G=20,M=20;let photoData='',sheetBlob=null;const loadImage=u=>new Promise((r,j)=>{const i=new Image;i.onload=()=>r(i);i.onerror=j;i.src=u});let faceDetectorPromise=null;
 
 async function detectFace(img){
  try{
-  if(faceDetectorPromise===null){
-   faceDetectorPromise=import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/+esm').then(async v=>{
-    const fileset=await v.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm');
-    return v.FaceDetector.createFromOptions(fileset,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'IMAGE',minDetectionConfidence:.45});
-   }).catch(e=>{faceDetectorPromise=null;throw e});
-  }
-  const d=await faceDetectorPromise,r=d.detect(img),b=r.detections&&r.detections[0]&&r.detections[0].boundingBox;
-  if(b)return {x:b.originX,y:b.originY,width:b.width,height:b.height};
+  if(faceDetectorPromise===null){faceDetectorPromise=import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/+esm').then(async v=>{const fileset=await v.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm');return v.FaceDetector.createFromOptions(fileset,{baseOptions:{modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'},runningMode:'IMAGE',minDetectionConfidence:.45})}).catch(e=>{faceDetectorPromise=null;throw e})}
+  const d=await faceDetectorPromise,r=d.detect(img),b=r.detections&&r.detections[0]&&r.detections[0].boundingBox;if(b)return{x:b.originX,y:b.originY,width:b.width,height:b.height};
  }catch(e){console.warn('MediaPipe face detector:',e)}
- try{
-  if('FaceDetector'in window){const d=new FaceDetector({fastMode:true,maxDetectedFaces:1}),f=await d.detect(img);if(f[0])return f[0].boundingBox}
- }catch(e){console.warn('Native face detector:',e)}
- return null;
+ try{if('FaceDetector'in window){const d=new FaceDetector({fastMode:true,maxDetectedFaces:1}),f=await d.detect(img);if(f[0])return f[0].boundingBox}}catch(e){console.warn('Native face detector:',e)}return null;
 }
 
 async function aiCut(file){
- statusEl.textContent='🤖 AI background removal starting… (first use can take a few minutes)';
- try{
-  const m=await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
-  const removeBackground=m.removeBackground||m.default;
-  if(typeof removeBackground!=='function')throw new Error('AI background-removal function not found');
-  const b=await removeBackground(file,{
-   model:'isnet_fp16',
-   device:'cpu',
-   proxyToWorker:true,
-   debug:false,
-   output:{format:'image/png',quality:1},
-   progress:(key,current,total)=>{
-    if(total){const pct=Math.max(0,Math.min(100,Math.round(current/total*100)));statusEl.textContent=`🤖 AI background removal: ${pct}% — ${key}`}
-   }
-  });
-  if(!(b instanceof Blob)||b.size<1000)throw new Error('AI returned an invalid image');
-  return URL.createObjectURL(b);
- }catch(e){
-  console.error('AI background removal failed:',e);
-  throw new Error('AI background removal failed. Please wait for the model to finish loading and try again.');
+ const CDN='https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
+ const tries=[{model:'isnet_fp16',name:'high quality AI'},{model:'isnet_quint8',name:'lightweight AI'}];
+ let lastError='';
+ for(let n=0;n<tries.length;n++){
+  const t=tries[n];
+  try{
+   statusEl.textContent=`🤖 ${t.name} background removal loading… ${n? '(retry mode)':''}`;
+   const m=await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm');
+   const removeBackground=m.removeBackground||m.default;if(typeof removeBackground!=='function')throw new Error('removeBackground unavailable');
+   const b=await removeBackground(file,{publicPath:CDN,model:t.model,device:'cpu',proxyToWorker:false,debug:false,output:{format:'image/png',quality:1},progress:(key,current,total)=>{if(total){const pct=Math.max(0,Math.min(100,Math.round(current/total*100)));statusEl.textContent=`🤖 AI background removal ${pct}% — ${key}`}}});
+   if(!(b instanceof Blob)||b.size<1000)throw new Error('invalid AI output');
+   statusEl.textContent='✓ AI background removed — preparing white background…';return URL.createObjectURL(b);
+  }catch(e){lastError=e?.message||String(e);console.error('AI attempt failed',t,lastError);if(n===0)statusEl.textContent='⚠️ First AI model failed — switching to lightweight model…'}
  }
+ throw new Error('AI background removal could not complete. Model download/inference failed: '+lastError);
 }
 
-function enhance(c){
- const d=c.getImageData(0,0,PW,PH),p=d.data;
- for(let i=0;i<p.length;i+=4){
-  p[i]=Math.min(255,Math.max(0,(p[i]-128)*1.018+130));
-  p[i+1]=Math.min(255,Math.max(0,(p[i+1]-128)*1.018+130));
-  p[i+2]=Math.min(255,Math.max(0,(p[i+2]-128)*1.018+130));
- }
- c.putImageData(d,0,0);
-}
-
-function compositeWhite(c){
- const d=c.getImageData(0,0,PW,PH),p=d.data;
- for(let i=0;i<p.length;i+=4){
-  const a=p[i+3]/255;
-  if(a<1){
-   p[i]=Math.round(p[i]*a+255*(1-a));p[i+1]=Math.round(p[i+1]*a+255*(1-a));p[i+2]=Math.round(p[i+2]*a+255*(1-a));p[i+3]=255;
-  }
- }
- c.putImageData(d,0,0);
-}
+function enhance(c){const d=c.getImageData(0,0,PW,PH),p=d.data;for(let i=0;i<p.length;i+=4){p[i]=Math.min(255,Math.max(0,(p[i]-128)*1.018+130));p[i+1]=Math.min(255,Math.max(0,(p[i+1]-128)*1.018+130));p[i+2]=Math.min(255,Math.max(0,(p[i+2]-128)*1.018+130))}c.putImageData(d,0,0)}
+function compositeWhite(c){const d=c.getImageData(0,0,PW,PH),p=d.data;for(let i=0;i<p.length;i+=4){const a=p[i+3]/255;if(a<1){p[i]=Math.round(p[i]*a+255*(1-a));p[i+1]=Math.round(p[i+1]*a+255*(1-a));p[i+2]=Math.round(p[i+2]*a+255*(1-a));p[i+3]=255}}c.putImageData(d,0,0)}
 
 async function makePhoto(file){
  const original=URL.createObjectURL(file);let cut=null;
  try{
-  const orig=await loadImage(original);
-  statusEl.textContent='🤖 AI detecting face…';
-  const face=await detectFace(orig);
-  cut=await aiCut(file);
-  const im=await loadImage(cut);
-  const sw=im.naturalWidth,sh=im.naturalHeight;
-  const c=document.createElement('canvas');c.width=PW;c.height=PH;
-  const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.fillStyle='#fff';x.fillRect(0,0,PW,PH);
-  const ratio=PW/PH;
-  let cw=sw,ch=sw/ratio,sx=(sw-cw)/2,sy=(sh-ch)*.22;
+  const orig=await loadImage(original);statusEl.textContent='🤖 AI detecting face…';const face=await detectFace(orig);cut=await aiCut(file);const im=await loadImage(cut);const sw=im.naturalWidth,sh=im.naturalHeight;
+  const c=document.createElement('canvas');c.width=PW;c.height=PH;const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.fillStyle='#fff';x.fillRect(0,0,PW,PH);const ratio=PW/PH;let cw=sw,ch=sw/ratio,sx=(sw-cw)/2,sy=(sh-ch)*.22;
   if(ch>sh){ch=sh;cw=ch*ratio;sy=0}
-  if(face){
-   statusEl.textContent='👤 AI face found — auto framing face to ~75–80%…';
-   const fx=face.x+face.width/2;
-   const faceTop=face.y;
-   // Target face/head height at about 75–80% of final photo, with headroom above it.
-   const target=0.77;
-   ch=Math.min(sh,Math.max(face.height/target,face.height*1.25));
-   cw=ch*ratio;
-   if(cw>sw){cw=sw;ch=cw/ratio}
-   sx=fx-cw/2;
-   // Keep the top of the head around 10–14% from the top of the passport photo.
-   sy=faceTop-ch*.12;
-  }
-  sx=Math.max(0,Math.min(sw-cw,sx));sy=Math.max(0,Math.min(sh-ch,sy));
-  x.drawImage(im,sx,sy,cw,ch,0,0,PW,PH);
-  // The AI output is RGBA. Composite every transparent pixel over pure white.
-  compositeWhite(x);
-  enhance(x);
-  return c.toDataURL('image/jpeg',.97);
- }finally{
-  URL.revokeObjectURL(original);if(cut)URL.revokeObjectURL(cut);
- }
+  if(face){statusEl.textContent='👤 AI face found — framing face/head at about 75–80%…';const fx=face.x+face.width/2,faceTop=face.y,target=.77;ch=Math.min(sh,Math.max(face.height/target,face.height*1.25));cw=ch*ratio;if(cw>sw){cw=sw;ch=cw/ratio}sx=fx-cw/2;sy=faceTop-ch*.12}
+  sx=Math.max(0,Math.min(sw-cw,sx));sy=Math.max(0,Math.min(sh-ch,sy));x.drawImage(im,sx,sy,cw,ch,0,0,PW,PH);compositeWhite(x);enhance(x);return c.toDataURL('image/jpeg',.97);
+ }finally{URL.revokeObjectURL(original);if(cut)URL.revokeObjectURL(cut)}
 }
 
-function buildSheet(){
- const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);
- return loadImage(photoData).then(im=>{for(let i=0;i<6;i++){const xx=M+i*(PW+G);x.drawImage(im,xx,M,PW,PH);x.strokeStyle='#111';x.lineWidth=4;x.strokeRect(xx+2,M+2,PW-4,PH-4)}return new Promise(r=>c.toBlob(r,'image/png'))});
-}
+function buildSheet(){const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);return loadImage(photoData).then(im=>{for(let i=0;i<6;i++){const xx=M+i*(PW+G);x.drawImage(im,xx,M,PW,PH);x.strokeStyle='#111';x.lineWidth=4;x.strokeRect(xx+2,M+2,PW-4,PH-4)}return new Promise(r=>c.toBlob(r,'image/png'))})}
 function preview(){a4.innerHTML='';for(let i=0;i<6;i++){const im=document.createElement('img');im.className='p';im.src=photoData;im.style.left=((M+i*(PW+G))*793/W)+'px';im.style.top=(M*1123/H)+'px';a4.appendChild(im)}}
-
-fileInput.onchange=async()=>{
- const f=fileInput.files[0];if(!f)return;
- pdfBtn.disabled=pngBtn.disabled=true;sheetBlob=null;photoData='';a4.innerHTML='';
- try{
-  photoData=await makePhoto(f);preview();statusEl.textContent='📄 Creating exact A4 sheet…';sheetBlob=await buildSheet();
-  pdfBtn.disabled=pngBtn.disabled=false;statusEl.textContent='✓ Complete — AI background removed, white background applied, face framed and A4 sheet ready.';
- }catch(e){
-  console.error(e);statusEl.textContent='❌ '+e.message;pdfBtn.disabled=pngBtn.disabled=true;
- }
-};
-
+fileInput.onchange=async()=>{const f=fileInput.files[0];if(!f)return;pdfBtn.disabled=pngBtn.disabled=true;sheetBlob=null;photoData='';a4.innerHTML='';try{photoData=await makePhoto(f);preview();statusEl.textContent='📄 Creating exact A4 sheet…';sheetBlob=await buildSheet();pdfBtn.disabled=pngBtn.disabled=false;statusEl.textContent='✓ Complete — AI background removed, pure white background applied, face framed and A4 sheet ready.'}catch(e){console.error(e);statusEl.textContent='❌ '+e.message;pdfBtn.disabled=pngBtn.disabled=true}};
 pngBtn.onclick=()=>{if(!sheetBlob)return;const u=URL.createObjectURL(sheetBlob),a=document.createElement('a');a.href=u;a.download='ANVI_E-Mitra_A4_300DPI.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)};
-pdfBtn.onclick=()=>{if(!photoData)return;const w=open('','_blank');if(!w)return;let q='';for(let i=0;i<6;i++){const xx=(M+i*(PW+G))*210/W,yy=M*297/H;q+=`<img src="${photoData}" style="position:absolute;left:${xx}mm;top:${yy}mm;width:33.02mm;height:35.56mm;object-fit:cover;border:.35mm solid #111">`}w.document.write(`<style>@page{size:A4;margin:0}body{margin:0}</style>${q}`);w.document.close();setTimeout(()=>w.print(),500)};
+pdfBtn.onclick=()=>{if(!photoData)return;const w=open('','_blank');if(!w)return;let q='';for(let i=0;i<6;i++){const xx=(M+i*(PW+G))*210/W,yy=M*297/H;q+=`<img src="${photoData}" style="position:absolute;left:${xx}mm;top:${yy}mm;width:33.02mm;height:35.56mm;object-fit:cover;border:.35mm solid #111">`}w.document.write(`<style>@page{size:A4;margin:0}body{margin:0}</style>${q}`);w.document.close();setTimeout(()=>w.print(),700)};
 </script>
 </body>
 </html>
