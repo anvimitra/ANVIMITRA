@@ -73,17 +73,17 @@ async function makePhoto(file){
   const sw=orig.naturalWidth,sh=orig.naturalHeight,ratio=PW/PH;let cw=sw,ch=sw/ratio,sx=(sw-cw)/2,sy=(sh-ch)*.12;
   if(ch>sh){ch=sh;cw=ch*ratio;sy=0}
   if(face){
-   statusEl.textContent='👤 AI face found — keeping extra headroom and shoulders…';
-   // Use a deliberately wider crop so hair, neck and both shoulders remain visible.
-   // The face is only an anchor; it is not allowed to fill most of the passport frame.
-   const targetFaceRatio=.42;
-   ch=Math.min(sh,Math.max(face.height/targetFaceRatio,face.height*2.38));
+   statusEl.textContent='👤 AI face found — balanced headroom, head and shoulders…';
+   // Wider framing: keep the complete hair/head and more shoulder area.
+   // The face is an anchor only; it should occupy roughly 36% of the photo height.
+   const targetFaceRatio=.36;
+   ch=Math.min(sh,Math.max(face.height/targetFaceRatio,face.height*2.78));
    cw=ch*ratio;
    if(cw>sw){cw=sw;ch=cw/ratio}
    const fx=face.x+face.width/2;
    sx=fx-cw/2;
-   // More headroom above the detector box prevents the top of the hair/head being cut.
-   sy=face.y-face.height*.42;
+   // Extra top margin prevents the top of the hair/head from being clipped.
+   sy=face.y-face.height*.65;
   }
   sx=Math.max(0,Math.min(sw-cw,sx));sy=Math.max(0,Math.min(sh-ch,sy));
   const out=document.createElement('canvas');out.width=PW;out.height=PH;const o=out.getContext('2d');o.imageSmoothingEnabled=true;o.imageSmoothingQuality='high';o.fillStyle='#fff';o.fillRect(0,0,PW,PH);
@@ -96,7 +96,7 @@ async function makePhoto(file){
 
 function buildSheet(){const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);return loadImage(photoData).then(im=>{for(let i=0;i<6;i++){const xx=M+i*(PW+G);x.drawImage(im,xx,M,PW,PH);x.strokeStyle='#111';x.lineWidth=4;x.strokeRect(xx+2,M+2,PW-4,PH-4)}return new Promise(r=>c.toBlob(r,'image/png'))})}
 function preview(){a4.innerHTML='';for(let i=0;i<6;i++){const im=document.createElement('img');im.className='p';im.src=photoData;im.style.left=((M+i*(PW+G))*793/W)+'px';im.style.top=(M*1123/H)+'px';a4.appendChild(im)}}
-fileInput.onchange=async()=>{const f=fileInput.files[0];if(!f)return;pdfBtn.disabled=pngBtn.disabled=true;sheetBlob=null;photoData='';a4.innerHTML='';try{photoData=await makePhoto(f);preview();statusEl.textContent='📄 Creating exact A4 sheet…';sheetBlob=await buildSheet();pdfBtn.disabled=pngBtn.disabled=false;statusEl.textContent='✓ Complete — AI background removed, pure white background applied, natural face/head/shoulder framing and A4 sheet ready.'}catch(e){console.error(e);statusEl.textContent='❌ AI processing failed: '+(e?.message||e);pdfBtn.disabled=pngBtn.disabled=true}};
+fileInput.onchange=async()=>{const f=fileInput.files[0];if(!f)return;pdfBtn.disabled=pngBtn.disabled=true;sheetBlob=null;photoData='';a4.innerHTML='';try{photoData=await makePhoto(f);preview();statusEl.textContent='📄 Creating exact A4 sheet…';sheetBlob=await buildSheet();pdfBtn.disabled=pngBtn.disabled=false;statusEl.textContent='✓ Complete — AI background removed, pure white background applied, balanced head/headroom/shoulder framing and A4 sheet ready.'}catch(e){console.error(e);statusEl.textContent='❌ AI processing failed: '+(e?.message||e);pdfBtn.disabled=pngBtn.disabled=true}};
 pngBtn.onclick=()=>{if(!sheetBlob)return;const u=URL.createObjectURL(sheetBlob),a=document.createElement('a');a.href=u;a.download='ANVI_E-Mitra_A4_300DPI.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)};
 pdfBtn.onclick=()=>{if(!photoData)return;const w=open('','_blank');if(!w)return;let q='';for(let i=0;i<6;i++){const xx=(M+i*(PW+G))*210/W,yy=M*297/H;q+=`<img src="${photoData}" style="position:absolute;left:${xx}mm;top:${yy}mm;width:33.02mm;height:35.56mm;object-fit:cover;border:.35mm solid #111">`}w.document.write(`<style>@page{size:A4;margin:0}body{margin:0}</style>${q}`);w.document.close();setTimeout(()=>w.print(),700)};
 </script>
