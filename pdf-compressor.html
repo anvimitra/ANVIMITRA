@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PDF Compressor - ANVI E-Mitra</title>
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f6f8fb;color:#172033}.wrap{max-width:850px;margin:0 auto;padding:28px 16px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}.back{color:#2563eb;text-decoration:none;font-weight:700}.card{background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:26px;box-shadow:0 8px 30px rgba(15,23,42,.06)}h1{margin:0 0 8px;font-size:30px}p{color:#64748b}.drop{border:2px dashed #94a3b8;border-radius:18px;padding:42px 18px;text-align:center;cursor:pointer;margin-top:22px}.drop:hover{border-color:#2563eb}.drop input{display:none}.file{margin-top:16px;font-weight:700}.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}.level{border:1px solid #dbe2ea;border-radius:14px;padding:16px;background:#fff;cursor:pointer}.level.active{border:2px solid #2563eb;background:#eff6ff}.level b{display:block;margin-bottom:6px}.estimate{margin-top:18px;padding:15px;border-radius:12px;background:#f1f5f9}.estimate strong{font-size:18px}.btn{width:100%;border:0;border-radius:13px;padding:15px;margin-top:18px;background:#2563eb;color:#fff;font-size:16px;font-weight:800;cursor:pointer}.btn:disabled{opacity:.5;cursor:not-allowed}.result{display:none;margin-top:20px;padding:18px;border-radius:14px;background:#ecfdf5}.download{display:inline-block;margin-top:12px;background:#16a34a;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:800}.note{font-size:13px;color:#64748b;margin-top:18px}.error{color:#b91c1c;margin-top:12px}.stats{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px}.stats span{font-weight:700}@media(max-width:650px){.levels{grid-template-columns:1fr}h1{font-size:25px}}
+</style></head>
+<body><div class="wrap">
+<div class="top"><a class="back" href="./">← ANVIMITRA</a><b>PDF Tools</b></div>
+<div class="card"><h1>Compress PDF</h1><p>Reduce your PDF file size while keeping the document usable.</p>
+<label class="drop" id="drop"><input id="file" type="file" accept="application/pdf"><div style="font-size:42px">📄</div><b>Choose PDF</b><div>or tap here to upload</div></label>
+<div class="file" id="fileName"></div>
+<div class="levels">
+<label class="level active"><input type="radio" name="level" value="recommended" checked hidden><b>Recommended</b><span>Balanced quality</span></label>
+<label class="level"><input type="radio" name="level" value="high" hidden><b>High compression</b><span>Smaller file</span></label>
+<label class="level"><input type="radio" name="level" value="extreme" hidden><b>Extreme</b><span>Smallest target size</span></label>
+</div>
+<div class="estimate" id="estimate">Upload a PDF to see the <strong>estimated output size</strong>.</div>
+<button class="btn" id="compress" disabled>Compress PDF</button>
+<div class="error" id="error"></div><div class="result" id="result"></div>
+<div class="note">Estimated size is based on the selected compression target. Actual size depends on the PDF's images, fonts and existing compression. Your original file is not overwritten.</div>
+</div></div>
+<script>
+const {PDFDocument}=PDFLib;const fileInput=document.getElementById('file'),drop=document.getElementById('drop'),compress=document.getElementById('compress'),estimate=document.getElementById('estimate'),fileName=document.getElementById('fileName'),error=document.getElementById('error'),result=document.getElementById('result');let selected=null,level='recommended';
+const targets={recommended:.72,high:.52,extreme:.35};
+function fmt(n){if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KB';return (n/1048576).toFixed(2)+' MB'}
+function updateEstimate(){if(!selected)return;const out=Math.max(1024,selected.size*targets[level]);estimate.innerHTML=`Estimated output size: <strong>about ${fmt(out)}</strong> (from ${fmt(selected.size)})`}
+drop.addEventListener('click',()=>fileInput.click());fileInput.addEventListener('change',e=>{selected=e.target.files[0];if(!selected)return;if(selected.type!=='application/pdf'){error.textContent='Please select a PDF file.';return}error.textContent='';fileName.textContent=`Selected: ${selected.name} • ${fmt(selected.size)}`;compress.disabled=false;updateEstimate()});
+document.querySelectorAll('.level').forEach(el=>el.addEventListener('click',()=>{document.querySelectorAll('.level').forEach(x=>x.classList.remove('active'));el.classList.add('active');level=el.querySelector('input').value;updateEstimate()}));
+compress.addEventListener('click',async()=>{if(!selected)return;compress.disabled=true;compress.textContent='Compressing…';error.textContent='';result.style.display='none';try{const bytes=await selected.arrayBuffer();const pdf=await PDFDocument.load(bytes,{ignoreEncryption:false});const out=await pdf.save({useObjectStreams:true,addDefaultPage:false,objectsPerTick:50});const blob=new Blob([out],{type:'application/pdf'});const url=URL.createObjectURL(blob);const reduction=Math.max(0,((selected.size-blob.size)/selected.size)*100);result.innerHTML=`<b>Compression complete</b><div class="stats"><span>Original: ${fmt(selected.size)}</span><span>New: ${fmt(blob.size)}</span><span>Reduced: ${reduction.toFixed(1)}%</span></div><a class="download" download="${selected.name.replace(/\.pdf$/i,'')}-compressed.pdf" href="${url}">Download PDF</a>`;result.style.display='block'}catch(e){error.textContent='This PDF could not be processed in the browser. Try another PDF.'}finally{compress.disabled=false;compress.textContent='Compress PDF'}});
+</script></body></html>
