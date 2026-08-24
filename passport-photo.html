@@ -14,7 +14,7 @@
 <label class="up"><div style="font-size:20px">📷 <b>Choose Photo</b></div><small>JPG / PNG / WEBP</small><input id="file" type="file" accept="image/*"></label>
 <div class="buttons"><button id="pdf" class="pdf" disabled>⬇ Save / Print A4 PDF</button><button id="png" class="png" disabled>⬇ Download A4 PNG</button></div>
 <div id="status" class="status">Choose a photo.</div>
-<p class="note">AI person segmentation • pure white background • AI face detection • ~75–80% face/head framing • subtle enhancement • A4 300 DPI • 1.3×1.4 inch photos • 6 copies.</p>
+<p class="note">AI person segmentation • pure white background • AI face detection • natural head/shoulder framing • subtle enhancement • A4 300 DPI • 1.3×1.4 inch photos • 6 copies.</p>
 <div class="preview"><div id="a4" class="a4"></div></div>
 </div>
 <script>
@@ -70,9 +70,23 @@ async function makePhoto(file){
  const original=URL.createObjectURL(file);
  try{
   const orig=await loadImage(original);statusEl.textContent='🤖 AI detecting face…';const face=await detectFace(orig);const seg=await aiCut(file,orig);
-  const sw=orig.naturalWidth,sh=orig.naturalHeight,ratio=PW/PH;let cw=sw,ch=sw/ratio,sx=(sw-cw)/2,sy=(sh-ch)*.20;
+  const sw=orig.naturalWidth,sh=orig.naturalHeight,ratio=PW/PH;let cw=sw,ch=sw/ratio,sx=(sw-cw)/2,sy=(sh-ch)*.12;
   if(ch>sh){ch=sh;cw=ch*ratio;sy=0}
-  if(face){statusEl.textContent='👤 AI face found — setting ~80% face framing…';const fx=face.x+face.width/2,faceTop=face.y;ch=Math.min(sh,Math.max(face.height/.78,face.height*1.28));cw=ch*ratio;if(cw>sw){cw=sw;ch=cw/ratio}sx=fx-cw/2;sy=faceTop-ch*.10}
+  if(face){
+   statusEl.textContent='👤 AI face found — setting natural passport framing…';
+   // Do not zoom to the face itself. Use the face only as an anchor and keep
+   // enough headroom plus shoulders. Target face height is about 58–62% of
+   // the finished photo instead of the previous ~80%, which was too tight.
+   const targetFaceRatio=.60;
+   ch=Math.min(sh,Math.max(face.height/targetFaceRatio,face.height*1.60));
+   cw=ch*ratio;
+   if(cw>sw){cw=sw;ch=cw/ratio}
+   const fx=face.x+face.width/2;
+   sx=fx-cw/2;
+   // Place the detected face slightly below the top so hair/head and shoulders
+   // remain visible while keeping the face centered.
+   sy=face.y-face.height*.45;
+  }
   sx=Math.max(0,Math.min(sw-cw,sx));sy=Math.max(0,Math.min(sh-ch,sy));
   const out=document.createElement('canvas');out.width=PW;out.height=PH;const o=out.getContext('2d');o.imageSmoothingEnabled=true;o.imageSmoothingQuality='high';o.fillStyle='#fff';o.fillRect(0,0,PW,PH);
   const fg=document.createElement('canvas');fg.width=PW;fg.height=PH;const f=fg.getContext('2d');f.imageSmoothingEnabled=true;f.imageSmoothingQuality='high';f.drawImage(orig,sx,sy,cw,ch,0,0,PW,PH);
@@ -84,7 +98,7 @@ async function makePhoto(file){
 
 function buildSheet(){const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);return loadImage(photoData).then(im=>{for(let i=0;i<6;i++){const xx=M+i*(PW+G);x.drawImage(im,xx,M,PW,PH);x.strokeStyle='#111';x.lineWidth=4;x.strokeRect(xx+2,M+2,PW-4,PH-4)}return new Promise(r=>c.toBlob(r,'image/png'))})}
 function preview(){a4.innerHTML='';for(let i=0;i<6;i++){const im=document.createElement('img');im.className='p';im.src=photoData;im.style.left=((M+i*(PW+G))*793/W)+'px';im.style.top=(M*1123/H)+'px';a4.appendChild(im)}}
-fileInput.onchange=async()=>{const f=fileInput.files[0];if(!f)return;pdfBtn.disabled=pngBtn.disabled=true;sheetBlob=null;photoData='';a4.innerHTML='';try{photoData=await makePhoto(f);preview();statusEl.textContent='📄 Creating exact A4 sheet…';sheetBlob=await buildSheet();pdfBtn.disabled=pngBtn.disabled=false;statusEl.textContent='✓ Complete — AI background removed, pure white background applied, face framed and A4 sheet ready.'}catch(e){console.error(e);statusEl.textContent='❌ AI processing failed: '+(e?.message||e);pdfBtn.disabled=pngBtn.disabled=true}};
+fileInput.onchange=async()=>{const f=fileInput.files[0];if(!f)return;pdfBtn.disabled=pngBtn.disabled=true;sheetBlob=null;photoData='';a4.innerHTML='';try{photoData=await makePhoto(f);preview();statusEl.textContent='📄 Creating exact A4 sheet…';sheetBlob=await buildSheet();pdfBtn.disabled=pngBtn.disabled=false;statusEl.textContent='✓ Complete — AI background removed, pure white background applied, natural face/head/shoulder framing and A4 sheet ready.'}catch(e){console.error(e);statusEl.textContent='❌ AI processing failed: '+(e?.message||e);pdfBtn.disabled=pngBtn.disabled=true}};
 pngBtn.onclick=()=>{if(!sheetBlob)return;const u=URL.createObjectURL(sheetBlob),a=document.createElement('a');a.href=u;a.download='ANVI_E-Mitra_A4_300DPI.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)};
 pdfBtn.onclick=()=>{if(!photoData)return;const w=open('','_blank');if(!w)return;let q='';for(let i=0;i<6;i++){const xx=(M+i*(PW+G))*210/W,yy=M*297/H;q+=`<img src="${photoData}" style="position:absolute;left:${xx}mm;top:${yy}mm;width:33.02mm;height:35.56mm;object-fit:cover;border:.35mm solid #111">`}w.document.write(`<style>@page{size:A4;margin:0}body{margin:0}</style>${q}`);w.document.close();setTimeout(()=>w.print(),700)};
 </script>
