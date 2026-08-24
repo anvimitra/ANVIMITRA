@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Resume Maker | ANVI E-Mitra & CSC Centre</title>
+<style>
+:root{--navy:#102d55;--blue:#2563eb;--bg:#eef3f8;--text:#10213d;--muted:#667085;--card:#fff;--line:#dbe3ee}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif}.wrap{max-width:1180px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.brand{font-weight:800;font-size:22px}.back{color:var(--navy);text-decoration:none;font-weight:700}.layout{display:grid;grid-template-columns:390px 1fr;gap:18px}.panel,.preview-shell{background:var(--card);border-radius:18px;padding:20px;box-shadow:0 6px 22px #0001}.panel{max-height:calc(100vh - 100px);overflow:auto}.preview-shell{overflow:auto}.h{margin:0 0 6px}.sub{color:var(--muted);font-size:13px;margin:0 0 18px}.group{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}.group h3{font-size:14px;margin:0 0 10px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:9px}.full{grid-column:1/-1}label{font-size:11px;font-weight:700;color:#475467}input,textarea,select{width:100%;margin-top:5px;border:1px solid #cfd8e3;border-radius:9px;padding:9px;font:inherit;font-size:13px;background:#fff}textarea{min-height:65px;resize:vertical}.actions{position:sticky;bottom:0;background:#fff;padding-top:14px;margin-top:14px;border-top:1px solid var(--line);display:flex;gap:8px}.btn{border:0;border-radius:10px;padding:11px 14px;font-weight:800;cursor:pointer}.primary{background:var(--navy);color:#fff}.secondary{background:#e8eef6;color:var(--navy)}.template-row{display:grid;grid-template-columns:repeat(7,minmax(85px,1fr));gap:8px;margin-bottom:16px}.tpl{border:2px solid #dbe3ee;border-radius:10px;background:#fff;padding:8px;cursor:pointer;text-align:center;font-size:11px;font-weight:700}.tpl.active{border-color:var(--blue);box-shadow:0 0 0 2px #2563eb22}.tpl .mini{height:70px;border-radius:5px;background:linear-gradient(#102d55 14px,transparent 14px),linear-gradient(90deg,#e5e7eb 30%,#fff 30%);margin-bottom:7px;border:1px solid #ddd}.tpl:nth-child(2) .mini{background:linear-gradient(90deg,#102d55 28%,#fff 28%)}.tpl:nth-child(3) .mini{background:linear-gradient(#2563eb 20px,#fff 20px)}.tpl:nth-child(4) .mini{background:linear-gradient(90deg,#f1f5f9 34%,#fff 34%)}.tpl:nth-child(5) .mini{background:linear-gradient(#111827 16px,#fff 16px)}.tpl:nth-child(6) .mini{background:linear-gradient(90deg,#fff 70%,#e8eef6 70%)}.tpl:nth-child(7) .mini{background:linear-gradient(#fff 48%,#102d55 48%)}
+#resume{width:794px;min-height:1123px;background:#fff;margin:auto;box-shadow:0 3px 18px #0002;padding:44px;color:#111;font-family:Arial,sans-serif}.r-name{font-size:31px;font-weight:800;margin:0}.r-head{font-size:14px;color:#475467;margin:5px 0 12px}.r-contact{font-size:11px;color:#344054;display:flex;flex-wrap:wrap;gap:8px}.r-title{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #222;padding-bottom:5px;margin:20px 0 8px}.r-body{font-size:11px;line-height:1.5;color:#344054;white-space:pre-line}.r-item{margin-bottom:10px}.r-item b{font-size:12px;color:#111}.r-grid{display:grid;grid-template-columns:1fr 2.1fr;gap:26px}.r-photo{width:92px;height:108px;object-fit:cover;border:1px solid #ddd;float:right;margin-left:15px}.r-tags{display:flex;flex-wrap:wrap;gap:5px}.tag{font-size:10px;border:1px solid #cfd8e3;border-radius:999px;padding:3px 7px}.small{font-size:10px;color:#667085}.theme2{font-family:Georgia,serif}.theme2 .r-title{color:#102d55;border-bottom-color:#102d55}.theme3{font-family:Verdana,sans-serif}.theme3 .r-name{color:#2563eb}.theme3 .r-title{background:#eff6ff;padding:6px;border:0}.theme4{font-family:Arial,sans-serif}.theme4 .r-grid{grid-template-columns:1fr 2fr}.theme4 .r-title{color:#667085;border-bottom:1px solid #cfd8e3}.theme5{font-family:Tahoma,sans-serif;background:#fcfcfc!important}.theme5 .r-name{letter-spacing:1px}.theme5 .r-title{background:#111827;color:white;padding:6px;border:0}.theme6{font-family:Arial,sans-serif}.theme6 .r-grid{grid-template-columns:2fr 1fr}.theme6 .r-title{color:#2563eb}.theme7{font-family:Calibri,Arial,sans-serif}.theme7 .r-title{color:#fff;background:#102d55;padding:6px;border:0}.notice{font-size:12px;color:#667085;margin-top:10px}@media(max-width:900px){.layout{grid-template-columns:1fr}.panel{max-height:none}.template-row{grid-template-columns:repeat(4,1fr)}.preview-shell{padding:8px}#resume{transform-origin:top left;width:794px}.preview-shell{min-height:700px;overflow:auto}}
+@media print{body{background:#fff}.wrap{padding:0}.top,.panel,.template-row,.notice{display:none!important}.preview-shell{box-shadow:none;padding:0}.layout{display:block}#resume{box-shadow:none;margin:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top"><div><div class="brand">ANVI E-Mitra & CSC Centre</div><div class="sub" style="margin:3px 0 0">Professional Resume Maker</div></div><a class="back" href="./">← Back to Services</a></div>
+<div class="layout">
+<section class="panel">
+<h2 class="h">Create your resume</h2><p class="sub">Enter your details once, choose a design, preview it and download a PDF.</p>
+<div class="group"><h3>Personal & Contact</h3><div class="fields">
+<label>Full Name<input id="name" placeholder="Your full name"></label><label>Job Title<input id="title" placeholder="e.g. Accountant"></label>
+<label>Phone<input id="phone" placeholder="+91 98765 43210"></label><label>Email<input id="email" placeholder="you@example.com"></label>
+<label>Location<input id="location" placeholder="City, State"></label><label>Website / LinkedIn<input id="website" placeholder="linkedin.com/in/you"></label>
+<label class="full">Profile Photo<input id="photo" type="file" accept="image/*"></label>
+</div></div>
+<div class="group"><h3>Profile</h3><label>Professional Summary<textarea id="summary" placeholder="Write a short professional summary..."></textarea></label></div>
+<div class="group"><h3>Education</h3><label>Education / Qualifications<textarea id="education" placeholder="B.Com — University Name — 2024\n12th — School Name — 2021"></textarea></label></div>
+<div class="group"><h3>Experience</h3><label>Work Experience<textarea id="experience" placeholder="Company — Job Title — 2024–Present\nDescribe your responsibilities and achievements."></textarea></label></div>
+<div class="group"><h3>Projects</h3><label>Projects<textarea id="projects" placeholder="Project name — brief description and result."></textarea></label></div>
+<div class="group"><h3>Skills</h3><label>Skills (comma separated)<input id="skills" placeholder="MS Office, Excel, Communication, Tally"></label></div>
+<div class="group"><h3>Additional Information</h3><div class="fields">
+<label>Achievements<textarea id="achievements"></textarea></label><label>Languages<textarea id="languages" placeholder="Hindi, English"></textarea></label>
+<label>Hobbies<textarea id="hobbies"></textarea></label><label>Declaration<textarea id="declaration">I hereby declare that the information provided above is true and correct to the best of my knowledge.</textarea></label>
+</div></div>
+<div class="actions"><button class="btn secondary" id="sample">Load Sample</button><button class="btn primary" id="download">Download PDF</button></div>
+<p class="notice">Tip: Your entered information stays in this browser. PDF generation happens on this page.</p>
+</section>
+<section class="preview-shell">
+<h2 class="h">Choose a template</h2><p class="sub">7 original layouts inspired by the simple template-selection workflow of the reference app.</p>
+<div class="template-row" id="templates"></div>
+<div id="resume" class="theme1"></div>
+</section>
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);let selected=1,photoData='';
+const templateNames=['Classic','Elegant','Modern Blue','Minimal','Executive','Sidebar','Bold'];
+$('templates').innerHTML=templateNames.map((n,i)=>`<button class="tpl ${i===0?'active':''}" data-t="${i+1}"><div class="mini"></div>${n}</button>`).join('');
+$('templates').addEventListener('click',e=>{const b=e.target.closest('.tpl');if(!b)return;selected=+b.dataset.t;document.querySelectorAll('.tpl').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()});
+['name','title','phone','email','location','website','summary','education','experience','projects','skills','achievements','languages','hobbies','declaration'].forEach(id=>$(id).addEventListener('input',render));
+$('photo').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{photoData=r.result;render()};r.readAsDataURL(f)});
+function esc(v){return (v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function section(title,body){if(!body.trim())return '';return `<div class="r-title">${title}</div><div class="r-body">${esc(body)}</div>`}
+function render(){const d={};['name','title','phone','email','location','website','summary','education','experience','projects','skills','achievements','languages','hobbies','declaration'].forEach(id=>d[id]=$(id).value);const tags=d.skills.split(',').map(x=>x.trim()).filter(Boolean).map(x=>`<span class="tag">${esc(x)}</span>`).join('');const contact=[d.phone,d.email,d.location,d.website].filter(Boolean).map(esc).join(' • ');const photo=photoData?`<img class="r-photo" src="${photoData}">`:'';
+let html=`${photo}<h1 class="r-name">${esc(d.name)||'Your Name'}</h1><div class="r-head">${esc(d.title)||'Professional Title'}</div><div class="r-contact">${contact||'Phone • Email • Location'}</div>`;
+if(selected===6){html+=`<div class="r-grid"><aside>${section('Skills',d.skills)}${section('Languages',d.languages)}${section('Hobbies',d.hobbies)}${section('Achievements',d.achievements)}</aside><article>${section('Profile',d.summary)}${section('Experience',d.experience)}${section('Education',d.education)}${section('Projects',d.projects)}${section('Declaration',d.declaration)}</article></div>`}else{html+=section('Profile',d.summary)+section('Experience',d.experience)+section('Education',d.education)+section('Projects',d.projects);if(d.skills)html+=`<div class="r-title">Skills</div><div class="r-tags">${tags}</div>`;html+=section('Achievements',d.achievements)+section('Languages',d.languages)+section('Hobbies',d.hobbies)+section('Declaration',d.declaration)}$('resume').className='theme'+selected;$('resume').innerHTML=html}
+$('sample').onclick=()=>{const sample={name:'Anvi Sharma',title:'Accountant / Office Professional',phone:'+91 98765 43210',email:'anvi@example.com',location:'Kota, Rajasthan',website:'linkedin.com/in/anvi',summary:'Detail-oriented professional with strong communication, documentation and computer skills. Experienced in handling office operations and maintaining accurate records.',education:'B.Com — University of Rajasthan — 2024\nSenior Secondary — RBSE — 2021',experience:'ABC Services — Office Executive — 2024–Present\nManage daily documentation, customer coordination and reporting. Improved record accuracy through organized digital files.',projects:'Digital Records Project — Organized customer documents into a searchable digital filing system.',skills:'MS Office, Excel, Tally, Communication, Documentation',achievements:'Employee of the Month — 2025',languages:'Hindi, English',hobbies:'Reading, Learning new technology'};Object.entries(sample).forEach(([k,v])=>$(k).value=v);render()};
+$('download').onclick=()=>{render();const opt={margin:0,filename:(($('name').value||'resume').trim().replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'')||'resume')+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#fff'},jsPDF:{unit:'pt',format:'a4',orientation:'portrait'}};html2pdf().set(opt).from($('resume')).save()};
+render();
+</script>
+</body></html>
