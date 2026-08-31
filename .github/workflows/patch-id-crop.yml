@@ -1,0 +1,44 @@
+name: Patch ID Card Crop Preview
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'id-card-print.html'
+      - '.github/workflows/patch-id-crop.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch crop workflow into ID card printer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('id-card-print.html')
+          s=p.read_text(encoding='utf-8')
+          original=s
+          s=s.replace('<button id="resetCrop">↺ Reset Crop</button><button id="fullCrop">□ Full Image</button>', '<button id="resetCrop">↺ Reset Crop</button><button id="fullCrop">□ Full Image</button><button class="primary" id="cropPreview">✂️ Crop & Preview</button>')
+          s=s.replace('crop:crop0(),brightness:100,contrast:100}', 'crop:crop0(),brightness:100,contrast:100,cropApplied:false}')
+          s=s.replace('crop:[{x:.08,y:.1},{x:.92,y:.1},{x:.92,y:.9},{x:.08,y:.9}],brightness:100,contrast:100}', 'crop:[{x:.08,y:.1},{x:.92,y:.1},{x:.92,y:.9},{x:.08,y:.9}],brightness:100,contrast:100,cropApplied:false}')
+          s=s.replace("$('editCanvas').addEventListener('pointermove',e=>{let it=sel();if(!it||dragPoint<0)return;it.crop[dragPoint]=pos(e);draw();renderSheet()});", "$('editCanvas').addEventListener('pointermove',e=>{let it=sel();if(!it||dragPoint<0)return;it.crop[dragPoint]=pos(e);it.cropApplied=false;draw();});")
+          s=s.replace("$('resetCrop').onclick=()=>{let i=sel();if(i){i.crop=crop0();render()}};", "$('resetCrop').onclick=()=>{let i=sel();if(i){i.crop=crop0();i.cropApplied=false;draw()}};")
+          s=s.replace("$('fullCrop').onclick=()=>{let i=sel();if(i){i.crop=[{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1}];render()}};", "$('fullCrop').onclick=()=>{let i=sel();if(i){i.crop=[{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1}];i.cropApplied=false;draw()}};")
+          s=s.replace("$('brightness').oninput=()=>{let i=sel();if(i){i.brightness=+$('brightness').value;sync();draw();renderSheet()}};", "$('brightness').oninput=()=>{let i=sel();if(i){i.brightness=+$('brightness').value;sync();draw();if(i.cropApplied)renderSheet()}};")
+          s=s.replace("$('contrast').oninput=()=>{let i=sel();if(i){i.contrast=+$('contrast').value;sync();draw();renderSheet()}};", "$('contrast').oninput=()=>{let i=sel();if(i){i.contrast=+$('contrast').value;sync();draw();if(i.cropApplied)renderSheet()}};\n$('cropPreview').onclick=async()=>{let i=sel();if(!i){alert('Pehle image select karein.');return}i.cropApplied=true;await renderSheet();document.querySelector('.sheet-panel')?.scrollIntoView({behavior:'smooth',block:'start'});};")
+          s=s.replace("if(!items.length||(type==='ration'&&items.length!==2)){sh.innerHTML='<div class=\"empty\">Upload required image(s).</div>';return}", "if(!items.length||(type==='ration'&&items.length!==2)){sh.innerHTML='<div class=\"empty\">Upload required image(s).</div>';return}if(items.some(i=>!i.cropApplied)){sh.innerHTML='<div class=\"empty\">✂️ Set the border on each image, then click <b>Crop & Preview</b>.</div>';return}")
+          if s==original:
+              print('No changes needed')
+          else:
+              p.write_text(s,encoding='utf-8')
+              print('Patched')
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add id-card-print.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Add Crop & Preview workflow to all document types'
+          git push
