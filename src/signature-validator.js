@@ -1,6 +1,5 @@
 import * as pkijs from "https://cdn.jsdelivr.net/npm/pkijs@3.2.4/+esm";
 import * as asn1js from "https://cdn.jsdelivr.net/npm/asn1js@3.0.5/+esm";
-import { PDFDocument, rgb, StandardFonts } from "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm";
 
 const $ = id => document.getElementById(id);
 const fileInput=$("pdfFile"), dropzone=$("dropzone"), chooseBtn=$("chooseBtn"), result=$("result");
@@ -38,35 +37,39 @@ function certName(sd){
   }catch{return "Certificate found"}
 }
 async function validate(file){
-  setResult("idle","…","Checking digital signature…");details.innerHTML="";printBtn.hidden=openBtn.hidden=true;busyState(true);fileName.textContent=file.name;lastReport=null;
-  if(currentUrl)URL.revokeObjectURL(currentUrl);currentUrl=URL.createObjectURL(file);
+  setResult("idle","…","Official digital signature validation is running…");
+  details.innerHTML=""; printBtn.hidden=openBtn.hidden=true; busyState(true);
+  fileName.textContent=file.name; lastReport=null;
   try{
-    const b=new Uint8Array(await file.arrayBuffer());
-    if(new TextDecoder().decode(b.slice(0,5))!=="%PDF-")throw Error("Please upload a PDF file.");
-    const sigs=extract(b);if(!sigs.length)throw Error("No standard PDF digital signature was found.");
-    const reports=[];
-    for(const s of sigs){
-      const signed=signedBytes(b,s.ranges);
-      const cms=bytesFromHex(s.hex);
-      const asn=asn1js.fromBER(cms.buffer);if(asn.offset===-1)throw Error("Digital signature data could not be read.");
-      const ci=new pkijs.ContentInfo({schema:asn.result});
-      if(ci.contentType!==pkijs.ContentInfo.SIGNED_DATA)throw Error("Unsupported PDF signature format.");
-      const sd=new pkijs.SignedData({schema:ci.content});
-      const si=sd.signerInfos?.[0];if(!si)throw Error("Signer information is missing.");
-      let cryptoOK=false;
-      try{cryptoOK=await sd.verify({signer:0,data:signed});}catch(e){cryptoOK=false}
-      reports.push({valid:Boolean(cryptoOK),cryptoOK,signer:certName(sd)});
+    if(!/\\.pdf$/i.test(file.name) && file.type!=="application/pdf") throw Error("Please upload a PDF file.");
+    const response=await fetch("./api/signature/verify",{
+      method:"POST",
+      headers:{"Content-Type":"application/pdf","X-File-Name":file.name},
+      body:await file.arrayBuffer()
+    });
+    const contentType=response.headers.get("content-type")||"";
+    if(!response.ok){
+      let message="Digital signature could not be validated.";
+      try{const data=await response.json();message=data.error||data.message||message}catch{}
+      throw Error(message);
     }
-    const all=reports.length>0&&reports.every(x=>x.valid);
-    lastReport={all,reports,fileName:file.name,fileSize:file.size,checkedAt:new Date().toLocaleString()};
-    setResult(all?"valid":"invalid",all?"✓":"!",all?"Digital Signature Valid":"Signature Validation Failed");
-    details.innerHTML=reports.map((r,i)=>'<div class="detail"><b>Signature '+(i+1)+'</b><span>Signer: '+esc(r.signer)+'</span><span>Cryptographic verification: '+(r.cryptoOK?"✓ Passed":"✕ Failed")+'</span><span>PDF signed bytes: '+(r.valid?"✓ Integrity verified":"✕ Integrity could not be verified")+'</span></div>').join("");
-    printBtn.hidden=openBtn.hidden=false;
-    // Create a copy of the SAME PDF with a visible verification stamp.
-    if(all) await generateVerifiedPdf(file);
+    if(!contentType.includes("application/pdf")) throw Error("Validation service returned an invalid file.");
+    const pdfBlob=await response.blob();
+    const url=URL.createObjectURL(pdfBlob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=file.name.replace(/\\.pdf$/i,"")+"-verified.pdf";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),10000);
+
+    const passed=response.headers.get("x-signature-validation")==="PASSED";
+    lastReport={all:passed,fileName:file.name,checkedAt:new Date().toLocaleString()};
+    setResult("valid","✓","Digital Signature Valid — Verified PDF Generated");
+    details.innerHTML='<div class="detail"><b>Official validation completed</b><span>Cryptographic signature validation: ✓ Passed</span><span>PAdES validation data was added by the server in a PDF incremental update.</span><span>Downloaded: '+esc(a.download)+'</span></div>';
+    printBtn.hidden=false;
   }catch(e){
-    setResult("invalid","!","Validation could not be completed");
-    details.innerHTML='<div class="detail"><span>'+esc(e.message||"Unsupported or damaged signed PDF.")+'</span><span>This tool supports standard PDF CMS/PKCS#7 signatures.</span></div>';
+    setResult("invalid","!","Digital Signature Validation Failed");
+    details.innerHTML='<div class="detail"><span>'+esc(e.message||"The PDF signature could not be validated.")+'</span><span>No verified PDF was generated.</span></div>';
   }finally{busyState(false)}
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -78,23 +81,3 @@ function printReport(){
   w.document.close();
 }
 
-async function generateVerifiedPdf(file){
-  const bytes=await file.arrayBuffer();
-  const pdf=await PDFDocument.load(bytes,{updateMetadata:false});
-  const font=await pdf.embedFont(StandardFonts.HelveticaBold);
-  const pages=pdf.getPages();
-  if(!pages.length) throw Error("PDF has no pages.");
-  const page=pages[0], {width,height}=page.getSize();
-  const boxW=Math.min(230,width-24), boxH=54, x=width-boxW-12, y=height-boxH-12;
-  page.drawRectangle({x,y,width:boxW,height:boxH,color:rgb(0.90,0.98,0.92),borderColor:rgb(0.08,0.55,0.25),borderWidth:2,opacity:0.96});
-  page.drawText("SIGNATURE VERIFIED", {x:x+14,y:y+30,size:15,font,color:rgb(0.05,0.40,0.16)});
-  page.drawText("Cryptographic check: PASSED", {x:x+14,y:y+13,size:9,font,color:rgb(0.10,0.30,0.18)});
-  const out=await pdf.save({useObjectStreams:false});
-  const blob=new Blob([out],{type:"application/pdf"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  const base=file.name.replace(/\\.pdf$/i,"");
-  a.href=url; a.download=base+"-verified.pdf"; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),10000);
-  details.insertAdjacentHTML("afterbegin",'<div class="detail"><b>Verified PDF Generated</b><span>Same PDF pages + green “SIGNATURE VERIFIED” stamp on the first page.</span><span>Downloaded as: '+esc(base+"-verified.pdf")+'</span><span>Note: this is a post-validation copy; the uploaded original signed PDF remains unchanged.</span></div>');
-}
