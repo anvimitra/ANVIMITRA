@@ -12,6 +12,7 @@ export default defineConfig({
         resumeMaker: 'resume-maker.html',
         pdfCompressor: 'pdf-compressor.html',
         idCardPrint: 'id-card-print.html',
+        signatureValidator: 'signature-validator.html',
       },
     },
   },
