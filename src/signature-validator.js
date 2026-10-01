@@ -3,7 +3,7 @@ import * as asn1js from "https://cdn.jsdelivr.net/npm/asn1js@3.0.5/+esm";
 
 const $ = id => document.getElementById(id);
 const fileInput=$("pdfFile"), dropzone=$("dropzone"), chooseBtn=$("chooseBtn"), result=$("result");
-const details=$("details"), fileName=$("fileName"), printBtn=$("printBtn"), openBtn=$("openBtn"), busy=$("busy");
+const details=$("details"), fileName=$("fileName"), printBtn=$("printBtn"), openBtn=$("openBtn"), busy=$("busy"), progressWrap=$("progressWrap"), progressBar=$("progressBar"), progressText=$("progressText");
 let currentUrl="", lastReport=null;
 
 chooseBtn.onclick=()=>fileInput.click();
@@ -14,7 +14,7 @@ dropzone.addEventListener("drop",e=>{const f=e.dataTransfer.files?.[0];if(f)vali
 printBtn.onclick=printReport;
 openBtn.onclick=()=>currentUrl&&window.open(currentUrl,"_blank","noopener");
 
-function busyState(v){busy.hidden=!v;chooseBtn.disabled=v}
+function setProgress(p,label){if(!progressBar)return;const n=Math.max(0,Math.min(100,p));progressBar.style.width=n+"%";progressText.textContent=n+"%"+(label?" — "+label:"");progressWrap.hidden=progressText.hidden=false}function busyState(v){busy.hidden=!v;chooseBtn.disabled=v;if(v)setProgress(0,"Starting")else{progressBar.style.width="100%";progressText.textContent="100% — Complete"}}
 function setResult(type,mark,status){result.className="result "+type;result.querySelector(".mark").textContent=mark;result.querySelector(".status").textContent=status}
 function bytesFromHex(s){const h=s.replace(/\s/g,"");if(h.length%2)throw Error("Invalid PDF signature contents.");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.slice(i*2,i*2+2),16);return a}
 function signedBytes(b,r){const[a,l,c,n]=r;if(a!==0||a+l> b.length||c+n>b.length)throw Error("Invalid PDF ByteRange.");const o=new Uint8Array(l+n);o.set(b.slice(a,a+l));o.set(b.slice(c,c+n),l);return o}
@@ -42,18 +42,23 @@ async function validate(file){
   fileName.textContent=file.name; lastReport=null;
   try{
     if(!/\\.pdf$/i.test(file.name) && file.type!=="application/pdf") throw Error("Please upload a PDF file.");
+    setProgress(15,"Reading PDF");
+    await new Promise(r=>setTimeout(r,120));
+    setProgress(30,"Uploading securely");
     const response=await fetch("./api/signature/verify",{
       method:"POST",
       headers:{"Content-Type":"application/pdf","X-File-Name":file.name},
       body:await file.arrayBuffer()
     });
     const contentType=response.headers.get("content-type")||"";
+    setProgress(70,"Verifying digital signature");
     if(!response.ok){
       let message="Digital signature could not be validated.";
       try{const data=await response.json();message=data.error||data.message||message}catch{}
       throw Error(message);
     }
     if(!contentType.includes("application/pdf")) throw Error("Validation service returned an invalid file.");
+    setProgress(88,"Generating verified PDF");
     const pdfBlob=await response.blob();
     const url=URL.createObjectURL(pdfBlob);
     const a=document.createElement("a");
@@ -64,10 +69,12 @@ async function validate(file){
 
     const passed=response.headers.get("x-signature-validation")==="PASSED";
     lastReport={all:passed,fileName:file.name,checkedAt:new Date().toLocaleString()};
+    setProgress(100,"Verification complete");
     setResult("valid","✓","Digital Signature Valid — Verified PDF Generated");
     details.innerHTML='<div class="detail"><b>Official validation completed</b><span>Cryptographic signature validation: ✓ Passed</span><span>PAdES validation data was added by the server in a PDF incremental update.</span><span>Downloaded: '+esc(a.download)+'</span></div>';
     printBtn.hidden=false;
   }catch(e){
+    setProgress(100,"Failed");
     setResult("invalid","!","Digital Signature Validation Failed");
     details.innerHTML='<div class="detail"><span>'+esc(e.message||"The PDF signature could not be validated.")+'</span><span>No verified PDF was generated.</span></div>';
   }finally{busyState(false)}
