@@ -61,6 +61,8 @@ async function validate(file){
     setResult(all?"valid":"invalid",all?"✓":"!",all?"Digital Signature Valid":"Signature Validation Failed");
     details.innerHTML=reports.map((r,i)=>'<div class="detail"><b>Signature '+(i+1)+'</b><span>Signer: '+esc(r.signer)+'</span><span>Cryptographic verification: '+(r.cryptoOK?"✓ Passed":"✕ Failed")+'</span><span>PDF signed bytes: '+(r.valid?"✓ Integrity verified":"✕ Integrity could not be verified")+'</span></div>').join("");
     printBtn.hidden=openBtn.hidden=false;
+    // Automatically prepare the printable validation report after verification.
+    setTimeout(() => printReport(), 150);
   }catch(e){
     setResult("invalid","!","Validation could not be completed");
     details.innerHTML='<div class="detail"><span>'+esc(e.message||"Unsupported or damaged signed PDF.")+'</span><span>This tool supports standard PDF CMS/PKCS#7 signatures.</span></div>';
