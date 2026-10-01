@@ -20,11 +20,11 @@ function bytesFromHex(s){const h=s.replace(/\s/g,"");if(h.length%2)throw Error("
 function signedBytes(b,r){const[a,l,c,n]=r;if(a!==0||a+l> b.length||c+n>b.length)throw Error("Invalid PDF ByteRange.");const o=new Uint8Array(l+n);o.set(b.slice(a,a+l));o.set(b.slice(c,c+n),l);return o}
 function extract(bytes){
   const s=new TextDecoder("latin1").decode(bytes), out=[];
-  const re=/\\/ByteRange\\s*\\[\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*\\]/g; let m;
+  const re=/\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g; let m;
   while((m=re.exec(s))){
     const ranges=m.slice(1).map(Number), pos=m.index, end=Math.min(s.length,pos+300000);
     const tail=s.slice(pos,end);
-    const cm=tail.match(/\\/Contents\\s*<([0-9A-Fa-f\\s]+)>/);
+    const cm=tail.match(/\/Contents\s*<([0-9A-Fa-f\s]+)>/);
     if(cm)out.push({ranges,hex:cm[1]});
   }
   return out;
