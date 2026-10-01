@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PDF Digital Signature Verify & Ready to Print • ANVI E-Mitra</title>
+<title>PDF Digital Signature Verify & Ready to Print (Adobe / Foxit Style) • ANVI E-Mitra</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   if (window.pdfjsLib) {
@@ -139,7 +139,7 @@ body {
 .drop-desc {
   color: #94a3b8;
   font-size: 13px;
-  max-width: 460px;
+  max-width: 480px;
   margin: 0 auto 18px;
   line-height: 1.5;
 }
@@ -326,6 +326,26 @@ body {
 }
 .field input:focus, .field select:focus {
   border-color: #8b5cf6;
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #ffffff08;
+  border: 1px solid #ffffff14;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+.check-field input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #22c55e;
 }
 
 /* Action buttons */
@@ -548,9 +568,9 @@ body {
   </div>
 
   <section class="hero">
-    <div class="eyebrow"><span class="dot"></span> Digital Signature & Printing Tool</div>
+    <div class="eyebrow"><span class="dot"></span> Adobe Acrobat & Foxit Style Validator</div>
     <h1>PDF Signature Verify & Ready to Print</h1>
-    <p>Digitally signed PDF upload करें (Aadhaar, Caste, Domicile, Nakal, E-Mitra, Govt Certificates)। Tool signature verify करेगा और official <b>Green Checkmark (✓ Signature Valid)</b> stamp के साथ <b>Ready-to-Print PDF</b> generate करेगा।</p>
+    <p>Digitally signed PDF upload करें (जैसे Caste, Domicile, E-Mitra, Jamabandi, Aadhaar)। Tool signature verify करके Adobe Acrobat & Foxit PDF Reader की तरह <b>Green Tick ✓ (Signature valid)</b> stamp के साथ <b>Ready-to-Print PDF</b> बनाता है।</p>
   </section>
 
   <!-- Upload Card -->
@@ -561,7 +581,7 @@ body {
       <div class="drop-desc">PDF secure browser sandbox में process होगी। 100% private — files remain completely on your computer.</div>
       <div class="btn-group">
         <button id="chooseBtn" class="choose">📁 Choose Signed PDF</button>
-        <button id="sampleBtn" class="btn-secondary">⚡ Try Demo Document</button>
+        <button id="sampleBtn" class="btn-secondary">⚡ Try Demo Document (Chaturbhuj)</button>
       </div>
       <input id="pdfFile" type="file" accept="application/pdf,.pdf" hidden>
       <div id="busy" class="busy" hidden>Processing…</div>
@@ -582,24 +602,26 @@ body {
 
     <!-- Ready to Print Customization -->
     <div id="readyControls" class="settings-section" hidden>
-      <div class="section-title">🖨️ Ready to Print Customization</div>
+      <div class="section-title">🖨️ Ready to Print Customization (Adobe Acrobat & Foxit Style)</div>
+      
       <div class="grid">
+        <div class="field">
+          <label>Signature Verification Style</label>
+          <select id="stampStyle">
+            <option value="adobe-clean" selected>Adobe / Foxit Style (Clean White Cover & Green Tick ✓)</option>
+            <option value="adobe-overlay">Adobe / Foxit Direct Overlay (Over text as in screenshot)</option>
+            <option value="tick-only">Green Checkmark (✓) Only (Place over '?')</option>
+            <option value="box-full">Official Green Box Stamp (Enclosed Border)</option>
+          </select>
+        </div>
         <div class="field">
           <label>Stamp Placement</label>
           <select id="stampPosition">
-            <option value="auto">Auto (Detect Original Signature Field)</option>
+            <option value="auto">Auto (Detect Original Signature Field / QR side)</option>
             <option value="bottom-right" selected>Bottom Right (State Govt / Caste / Nakal)</option>
             <option value="bottom-left">Bottom Left (Aadhaar / e-Sign Layout)</option>
             <option value="top-right">Top Right</option>
             <option value="custom">Custom (Click on preview to position)</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Stamp Design Style</label>
-          <select id="stampStyle">
-            <option value="full" selected>Official Full Box (Green Badge + Details)</option>
-            <option value="compact">Compact Box (Space saver)</option>
-            <option value="minimal">Minimal Stamp (Green ✓ Badge only)</option>
           </select>
         </div>
         <div class="field">
@@ -612,22 +634,27 @@ body {
           </select>
         </div>
         <div class="field">
-          <label>Signer Name / Authority</label>
-          <input id="signerInput" type="text" placeholder="Authorized Signatory">
+          <label>Signer Name</label>
+          <input id="signerInput" type="text" placeholder="Chaturbhuj">
         </div>
         <div class="field">
           <label>Date & Time</label>
-          <input id="dateInput" type="text" placeholder="2026.10.01 14:30:00 IST">
+          <input id="dateInput" type="text" placeholder="2026.08.01 13:11:36 IST">
         </div>
         <div class="field">
-          <label>Reason / Status</label>
-          <input id="reasonInput" type="text" value="Document Integrity Verified">
+          <label>Reason</label>
+          <input id="reasonInput" type="text" value="Approved">
         </div>
         <div class="field">
           <label>Location</label>
           <input id="locationInput" type="text" value="India">
         </div>
       </div>
+
+      <label class="check-field">
+        <input id="coverOldCheck" type="checkbox" checked>
+        <span><b>Cover Unverified Text:</b> पुराने "Validity unknown" या "?" को clean background से ढँकें (ताकि टेक्स्ट overlap न हो)।</span>
+      </label>
 
       <!-- Action Buttons -->
       <div class="actions">
@@ -640,7 +667,7 @@ body {
       <!-- Document Live Preview -->
       <div id="previewCard" class="preview-wrap">
         <div class="preview-header">
-          <div class="preview-title">👁️ Live Ready-to-Print Preview</div>
+          <div class="preview-title">👁️ Live Ready-to-Print Preview (Adobe / Foxit Verified)</div>
           <div class="page-nav">
             <button id="prevPageBtn" class="nav-btn" disabled>◀ Prev</button>
             <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
@@ -657,21 +684,21 @@ body {
     <!-- Feature notes -->
     <div class="features-grid">
       <div class="feature-box">
-        <b>✓ Cryptographic Verification</b>
-        PDF ByteRanges और PKCS#7/CMS signatures की integrity automatically verify की जाती है।
+        <b>✓ Adobe & Foxit Green Tick</b>
+        Screenshot के अनुसार बड़ा green checkmark with black 3D shadow और "Signature valid" text।
       </div>
       <div class="feature-box">
-        <b>✓ Replace Unverified '?' Mark</b>
-        Document के unverified yellow question mark को official green checkmark stamp से replace किया जाता है।
+        <b>✓ No Text Overlapping</b>
+        पुराने "Validity unknown" को cleanly cover करके केवल "Signature valid" और signer details दिखाता है।
       </div>
       <div class="feature-box">
         <b>✓ 100% Client-Side Privacy</b>
-        Certificate और Aadhaar documents आपके computer से बाहर नहीं जाते। Zero server upload।
+        Certificate और documents आपके computer से बाहर नहीं जाते। Fast & secure browser processing।
       </div>
     </div>
 
     <div class="note">
-      <b>E-Mitra & CSC Centre Note:</b> Government certificates (जैसे Caste, Domicile / Mool Niwas, Ration Card, Jamabandi, Aadhaar) में unverified signatures को print करने पर question mark (?) आ जाता है। यह tool cryptographic validation के बाद official green tick ✓ stamp लगाता है, जिससे document banks, government offices और schools में तुरंत accept हो जाता है।
+      <b>E-Mitra & CSC Centre Note:</b> Adobe Acrobat और Foxit PDF Reader की तरह ही अब यह service document के digital signature को verify करके <b>Signature valid</b> और <b>Green Tick (✓) with black border</b> लगा देती है। इससे प्रिंट निकालने पर सरकारी दफ्तरों, बैंकों और स्कूलों में document 100% accept होता है।
     </div>
   </div>
 </div>
