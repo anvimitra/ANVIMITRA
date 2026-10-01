@@ -1,5 +1,6 @@
 import * as pkijs from "https://cdn.jsdelivr.net/npm/pkijs@3.2.4/+esm";
 import * as asn1js from "https://cdn.jsdelivr.net/npm/asn1js@3.0.5/+esm";
+import { PDFDocument, rgb, StandardFonts } from "https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm";
 
 const $ = id => document.getElementById(id);
 const fileInput=$("pdfFile"), dropzone=$("dropzone"), chooseBtn=$("chooseBtn"), result=$("result");
@@ -61,8 +62,8 @@ async function validate(file){
     setResult(all?"valid":"invalid",all?"✓":"!",all?"Digital Signature Valid":"Signature Validation Failed");
     details.innerHTML=reports.map((r,i)=>'<div class="detail"><b>Signature '+(i+1)+'</b><span>Signer: '+esc(r.signer)+'</span><span>Cryptographic verification: '+(r.cryptoOK?"✓ Passed":"✕ Failed")+'</span><span>PDF signed bytes: '+(r.valid?"✓ Integrity verified":"✕ Integrity could not be verified")+'</span></div>').join("");
     printBtn.hidden=openBtn.hidden=false;
-    // Automatically prepare the printable validation report after verification.
-    setTimeout(() => printReport(), 150);
+    // Create a copy of the SAME PDF with a visible verification stamp.
+    if(all) await generateVerifiedPdf(file);
   }catch(e){
     setResult("invalid","!","Validation could not be completed");
     details.innerHTML='<div class="detail"><span>'+esc(e.message||"Unsupported or damaged signed PDF.")+'</span><span>This tool supports standard PDF CMS/PKCS#7 signatures.</span></div>';
@@ -75,4 +76,25 @@ function printReport(){
   const ok=r.all;
   w.document.write('<!doctype html><html><head><title>PDF Signature Validation</title><style>body{font-family:Arial;padding:35px}.box{max-width:700px;margin:auto;border:2px solid '+(ok?"#16a34a":"#dc2626")+';padding:28px;border-radius:16px}.mark{font-size:72px;color:'+(ok?"#16a34a":"#dc2626")+'}.title{font-size:26px;font-weight:800}.item{padding:12px 0;border-bottom:1px solid #ddd}.muted{color:#666;font-size:12px}@media print{button{display:none}}</style></head><body><div class="box"><div class="mark">'+(ok?"✓":"!")+'</div><div class="title">'+(ok?"DIGITAL SIGNATURE VALID":"DIGITAL SIGNATURE VALIDATION FAILED")+'</div><p><b>File:</b> '+esc(r.fileName)+'</p><p><b>Checked:</b> '+esc(r.checkedAt)+'</p>'+r.reports.map((x,i)=>'<div class="item"><b>Signature '+(i+1)+'</b><br>Signer: '+esc(x.signer)+'<br>Cryptographic verification: '+(x.valid?"PASSED":"FAILED")+'</div>').join("")+'<p class="muted">Validation report only. Original signed PDF was not modified.</p><button onclick="window.print()">Print / Save as PDF</button></div></body></html>');
   w.document.close();
+}
+
+async function generateVerifiedPdf(file){
+  const bytes=await file.arrayBuffer();
+  const pdf=await PDFDocument.load(bytes,{updateMetadata:false});
+  const font=await pdf.embedFont(StandardFonts.HelveticaBold);
+  const pages=pdf.getPages();
+  if(!pages.length) throw Error("PDF has no pages.");
+  const page=pages[0], {width,height}=page.getSize();
+  const boxW=Math.min(230,width-24), boxH=54, x=width-boxW-12, y=height-boxH-12;
+  page.drawRectangle({x,y,width:boxW,height:boxH,color:rgb(0.90,0.98,0.92),borderColor:rgb(0.08,0.55,0.25),borderWidth:2,opacity:0.96});
+  page.drawText("SIGNATURE VERIFIED", {x:x+14,y:y+30,size:15,font,color:rgb(0.05,0.40,0.16)});
+  page.drawText("Cryptographic check: PASSED", {x:x+14,y:y+13,size:9,font,color:rgb(0.10,0.30,0.18)});
+  const out=await pdf.save({useObjectStreams:false});
+  const blob=new Blob([out],{type:"application/pdf"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  const base=file.name.replace(/\\.pdf$/i,"");
+  a.href=url; a.download=base+"-verified.pdf"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  details.insertAdjacentHTML("afterbegin",'<div class="detail"><b>Verified PDF Generated</b><span>Same PDF pages + green “SIGNATURE VERIFIED” stamp on the first page.</span><span>Downloaded as: '+esc(base+"-verified.pdf")+'</span><span>Note: this is a post-validation copy; the uploaded original signed PDF remains unchanged.</span></div>');
 }
