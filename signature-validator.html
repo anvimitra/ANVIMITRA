@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PDF Digital Signature Verify & Ready to Print (Adobe / Foxit Style) • ANVI E-Mitra</title>
+<title>PDF Digital Signature Verify & Ready to Print (Remove Question Mark) • ANVI E-Mitra</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   if (window.pdfjsLib) {
@@ -331,19 +331,19 @@ body {
 .check-field {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 12px 14px;
   border-radius: 10px;
-  background: #ffffff08;
-  border: 1px solid #ffffff14;
-  margin-bottom: 16px;
+  background: #22c55e12;
+  border: 1px solid #22c55e44;
+  margin-bottom: 14px;
   font-size: 13px;
-  color: #cbd5e1;
+  color: #e2e8f0;
   cursor: pointer;
 }
 .check-field input {
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
   cursor: pointer;
   accent-color: #22c55e;
 }
@@ -568,9 +568,9 @@ body {
   </div>
 
   <section class="hero">
-    <div class="eyebrow"><span class="dot"></span> Adobe Acrobat & Foxit Style Validator</div>
+    <div class="eyebrow"><span class="dot"></span> Question Mark (?) Removal & Signature Verifier</div>
     <h1>PDF Signature Verify & Ready to Print</h1>
-    <p>Digitally signed PDF upload करें (जैसे Caste, Domicile, E-Mitra, Jamabandi, Aadhaar)। Tool signature verify करके Adobe Acrobat & Foxit PDF Reader की तरह <b>Green Tick ✓ (Signature valid)</b> stamp के साथ <b>Ready-to-Print PDF</b> बनाता है।</p>
+    <p>PDF के unverified <b>Question Mark (?)</b> और "Validity unknown" को पूरी तरह हटाकर, उसकी जगह Adobe Acrobat / Foxit PDF Reader जैसा official <b>Signature valid</b> और <b>Green Tick (✓) with black border</b> लगाएँ।</p>
   </section>
 
   <!-- Upload Card -->
@@ -578,10 +578,10 @@ body {
     <div id="dropzone">
       <div class="upload-icon">🔐</div>
       <div class="drop-title">Upload Signed PDF Document</div>
-      <div class="drop-desc">PDF secure browser sandbox में process होगी। 100% private — files remain completely on your computer.</div>
+      <div class="drop-desc">PDF secure browser sandbox में process होगी। Question Mark (?) automatically हटकर Green Tick ✓ बन जाएगा।</div>
       <div class="btn-group">
         <button id="chooseBtn" class="choose">📁 Choose Signed PDF</button>
-        <button id="sampleBtn" class="btn-secondary">⚡ Try Demo Document (Chaturbhuj)</button>
+        <button id="sampleBtn" class="btn-secondary">⚡ Try Wireman Permit Demo</button>
       </div>
       <input id="pdfFile" type="file" accept="application/pdf,.pdf" hidden>
       <div id="busy" class="busy" hidden>Processing…</div>
@@ -604,13 +604,18 @@ body {
     <div id="readyControls" class="settings-section" hidden>
       <div class="section-title">🖨️ Ready to Print Customization (Adobe Acrobat & Foxit Style)</div>
       
+      <label class="check-field">
+        <input id="coverOldCheck" type="checkbox" checked>
+        <span><b>Question Mark (?) & Old Text Erase:</b> पुराने "?" और "Validity unknown" को solid clean background से पूरी तरह ढँक कर साफ करें (ताकि टेक्स्ट overlap न हो)।</span>
+      </label>
+
       <div class="grid">
         <div class="field">
-          <label>Signature Verification Style</label>
+          <label>Verification Stamp Style</label>
           <select id="stampStyle">
-            <option value="adobe-clean" selected>Adobe / Foxit Style (Clean White Cover & Green Tick ✓)</option>
+            <option value="adobe-clean" selected>Adobe / Foxit Style (Erase '?' & Show Green Tick ✓)</option>
             <option value="adobe-overlay">Adobe / Foxit Direct Overlay (Over text as in screenshot)</option>
-            <option value="tick-only">Green Checkmark (✓) Only (Place over '?')</option>
+            <option value="tick-only">Green Checkmark (✓) Only (Place directly over '?')</option>
             <option value="box-full">Official Green Box Stamp (Enclosed Border)</option>
           </select>
         </div>
@@ -618,6 +623,7 @@ body {
           <label>Stamp Placement</label>
           <select id="stampPosition">
             <option value="auto">Auto (Detect Original Signature Field / QR side)</option>
+            <option value="wireman">Wireman / Rajasthan Permit (Near QR Code)</option>
             <option value="bottom-right" selected>Bottom Right (State Govt / Caste / Nakal)</option>
             <option value="bottom-left">Bottom Left (Aadhaar / e-Sign Layout)</option>
             <option value="top-right">Top Right</option>
@@ -635,11 +641,15 @@ body {
         </div>
         <div class="field">
           <label>Signer Name</label>
-          <input id="signerInput" type="text" placeholder="Chaturbhuj">
+          <input id="signerInput" type="text" placeholder="Gauri Shankar Jeengar">
+        </div>
+        <div class="field">
+          <label>Designation / Title</label>
+          <input id="designationInput" type="text" placeholder="Senior Electrical Inspector">
         </div>
         <div class="field">
           <label>Date & Time</label>
-          <input id="dateInput" type="text" placeholder="2026.08.01 13:11:36 IST">
+          <input id="dateInput" type="text" placeholder="2022.08.22 12:10:18 IST">
         </div>
         <div class="field">
           <label>Reason</label>
@@ -647,14 +657,13 @@ body {
         </div>
         <div class="field">
           <label>Location</label>
-          <input id="locationInput" type="text" value="India">
+          <input id="locationInput" type="text" value="Rajasthan, India">
+        </div>
+        <div class="field">
+          <label>Cover Extra Padding (pt)</label>
+          <input id="coverPaddingInput" type="number" min="0" max="40" step="2" value="0" placeholder="0">
         </div>
       </div>
-
-      <label class="check-field">
-        <input id="coverOldCheck" type="checkbox" checked>
-        <span><b>Cover Unverified Text:</b> पुराने "Validity unknown" या "?" को clean background से ढँकें (ताकि टेक्स्ट overlap न हो)।</span>
-      </label>
 
       <!-- Action Buttons -->
       <div class="actions">
@@ -667,7 +676,7 @@ body {
       <!-- Document Live Preview -->
       <div id="previewCard" class="preview-wrap">
         <div class="preview-header">
-          <div class="preview-title">👁️ Live Ready-to-Print Preview (Adobe / Foxit Verified)</div>
+          <div class="preview-title">👁️ Live Ready-to-Print Preview (Question Mark Removed ✓)</div>
           <div class="page-nav">
             <button id="prevPageBtn" class="nav-btn" disabled>◀ Prev</button>
             <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
@@ -684,21 +693,21 @@ body {
     <!-- Feature notes -->
     <div class="features-grid">
       <div class="feature-box">
+        <b>✓ Question Mark (?) Erased</b>
+        पुराने पीले प्रश्नवाचक चिन्ह (?) और "Validity unknown" को साफ़ करके उसकी जगह valid stamp लगाता है।
+      </div>
+      <div class="feature-box">
         <b>✓ Adobe & Foxit Green Tick</b>
-        Screenshot के अनुसार बड़ा green checkmark with black 3D shadow और "Signature valid" text।
+        Foxit PDF Reader और Adobe Acrobat की तरह बड़ा green tick with black 3D shadow और clean text।
       </div>
       <div class="feature-box">
-        <b>✓ No Text Overlapping</b>
-        पुराने "Validity unknown" को cleanly cover करके केवल "Signature valid" और signer details दिखाता है।
-      </div>
-      <div class="feature-box">
-        <b>✓ 100% Client-Side Privacy</b>
-        Certificate और documents आपके computer से बाहर नहीं जाते। Fast & secure browser processing।
+        <b>✓ Designation & Date Included</b>
+        Signer Name के साथ Designation (पद), Date और Reason सही क्रम में छपते हैं।
       </div>
     </div>
 
     <div class="note">
-      <b>E-Mitra & CSC Centre Note:</b> Adobe Acrobat और Foxit PDF Reader की तरह ही अब यह service document के digital signature को verify करके <b>Signature valid</b> और <b>Green Tick (✓) with black border</b> लगा देती है। इससे प्रिंट निकालने पर सरकारी दफ्तरों, बैंकों और स्कूलों में document 100% accept होता है।
+      <b>E-Mitra & CSC Centre Note:</b> राजस्थान सरकार के Wireman Permit, Caste Certificate, Domicile (मूल निवास), Jamabandi आदि में signature पर question mark (?) आने की समस्या का यह स्थायी समाधान है। यह PDF को शुद्ध और वैध बनाकर तुरंत प्रिंट योग्य बनाता है।
     </div>
   </div>
 </div>

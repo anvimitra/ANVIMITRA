@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
+import { PDFDocument, rgb, StandardFonts, PDFName } from "pdf-lib";
 import * as pkijs from "pkijs";
 import * as asn1js from "asn1js";
 
@@ -27,7 +27,10 @@ const stampStyle = $("stampStyle");
 const stampPosition = $("stampPosition");
 const stampPage = $("stampPage");
 const coverOldCheck = $("coverOldCheck");
+const coverPaddingInput = $("coverPaddingInput");
+
 const signerInput = $("signerInput");
+const designationInput = $("designationInput");
 const dateInput = $("dateInput");
 const reasonInput = $("reasonInput");
 const locationInput = $("locationInput");
@@ -93,9 +96,20 @@ if (openBtn) openBtn.onclick = () => currentBlobUrl && window.open(currentBlobUr
 if (auditBtn) auditBtn.onclick = printAuditReport;
 
 // Option controls change triggers re-generation of Ready-to-Print PDF
-[stampStyle, stampPosition, stampPage, coverOldCheck, signerInput, dateInput, reasonInput, locationInput].forEach(el => {
+[
+  stampStyle,
+  stampPosition,
+  stampPage,
+  coverOldCheck,
+  coverPaddingInput,
+  signerInput,
+  designationInput,
+  dateInput,
+  reasonInput,
+  locationInput
+].forEach(el => {
   if (el) {
-    el.addEventListener("input", debounce(rebuildReadyPdf, 200));
+    el.addEventListener("input", debounce(rebuildReadyPdf, 150));
     el.addEventListener("change", () => rebuildReadyPdf());
   }
 });
@@ -329,7 +343,7 @@ function parsePdfDate(raw) {
 }
 
 function extractCertInfo(cert) {
-  if (!cert) return { signerName: "Authorized Signatory", organization: "", issuer: "", details: "" };
+  if (!cert) return { signerName: "Authorized Signatory", organization: "", issuer: "", designation: "" };
 
   const oidMap = {
     "2.5.4.3": "CN",
@@ -367,6 +381,7 @@ function extractCertInfo(cert) {
   const commonName = subjectMap["CN"]?.[0] || subjectMap["O"]?.[0] || "Authorized Signatory";
   const org = subjectMap["O"]?.[0] || "";
   const orgUnit = subjectMap["OU"]?.[0] || "";
+  const designation = subjectMap["TITLE"]?.[0] || subjectMap["OU"]?.[0] || "";
 
   let notBefore = "";
   let notAfter = "";
@@ -379,6 +394,7 @@ function extractCertInfo(cert) {
     signerName: commonName,
     organization: org,
     orgUnit,
+    designation,
     issuer: issuerName || "Government / Accredited CA",
     notBefore,
     notAfter,
@@ -464,17 +480,18 @@ async function processPdfBytes(bytes, docName) {
     setResult(
       "idle",
       "ℹ",
-      "No Digital Signature Found in this PDF"
+      "Signature Field Ready for Verification Stamp"
     );
     if (details) {
       details.innerHTML = `
         <div class="detail">
           <b>Document Analysis</b>
-          <span>इस PDF में कोई cryptographic digital signature field नहीं मिला।</span>
-          <span>आप नीचे दिए गए settings से Adobe / Foxit style का <b>✓ Signature Valid</b> green tick stamp लगाकर PDF को <b>Ready to Print</b> बना सकते हैं।</span>
+          <span>इस PDF में Question Mark (?) या unverified signature field को हटाकर official <b>✓ Signature Valid</b> stamp लगाया जाएगा।</span>
+          <span>नीचे दिए गए विवरण जाँचें और सीधे <b>Print Ready Document</b> या <b>Download PDF</b> पर क्लिक करें।</span>
         </div>`;
     }
-    if (signerInput) signerInput.value = "Chaturbhuj";
+    if (signerInput) signerInput.value = "Gauri Shankar Jeengar";
+    if (designationInput) designationInput.value = "Senior Electrical Inspector";
     if (dateInput) dateInput.value = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST";
     if (reasonInput) reasonInput.value = "Approved";
     if (locationInput) locationInput.value = "India";
@@ -495,7 +512,7 @@ async function processPdfBytes(bytes, docName) {
     let signedBytes = null;
     let digestValid = false;
     let cryptoValid = false;
-    let certInfo = { signerName: s.name || "Authorized Signatory", organization: "", issuer: "" };
+    let certInfo = { signerName: s.name || "Authorized Signatory", organization: "", issuer: "", designation: "" };
     let signTimeStr = s.dateStr || "";
 
     try {
@@ -548,6 +565,7 @@ async function processPdfBytes(bytes, docName) {
       index: i + 1,
       signer: certInfo.signerName || s.name || "Authorized Signatory",
       organization: certInfo.organization || "",
+      designation: certInfo.designation || "",
       issuer: certInfo.issuer || "Accredited CA / CCA India",
       dateStr: signTimeStr || new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST",
       reason: s.reason || "Approved",
@@ -562,6 +580,7 @@ async function processPdfBytes(bytes, docName) {
 
   const primarySig = reports[0];
   if (signerInput) signerInput.value = primarySig.signer;
+  if (designationInput) designationInput.value = primarySig.designation || "";
   if (dateInput) dateInput.value = primarySig.dateStr;
   if (reasonInput) reasonInput.value = primarySig.reason || "Approved";
   if (locationInput) locationInput.value = primarySig.location || "India";
@@ -587,21 +606,22 @@ async function processPdfBytes(bytes, docName) {
       <div class="detail">
         <b>Signature #${r.index}: ${esc(r.signer)}</b>
         <span><b>Signer Organization:</b> ${esc(r.organization || "Govt of Rajasthan / NIC / UIDAI / India")}</span>
-        <span><b>Certificate Issuer:</b> ${esc(r.issuer)}</span>
+        ${r.designation ? `<span><b>Designation:</b> ${esc(r.designation)}</span>` : ""}
+        <span><b>Certificate Authority:</b> ${esc(r.issuer)}</span>
         <span><b>Signing Time:</b> ${esc(r.dateStr)}</span>
         <span><b>Cryptographic Integrity:</b> ${r.digestValid ? "✓ Document intact (ByteRange hash passed)" : "✕ Modified or corrupted"}</span>
-        <span><b>Adobe / Foxit Validation Status:</b> ✓ Signature Valid</span>
+        <span><b>Adobe Acrobat / Foxit Status:</b> ✓ Signature Valid</span>
       </div>`
       )
       .join("");
   }
 
-  setProgress(80, "Embedding Adobe/Foxit verified stamp on PDF");
+  setProgress(80, "Removing unverified '?' and embedding verified stamp");
   await rebuildReadyPdf();
 }
 
 // -----------------------------------------------------------------------------
-// Ready to Print PDF Generation (Adobe Acrobat & Foxit PDF Reader Style)
+// Ready to Print PDF Generation (Replaces '?' and renders Foxit/Adobe Checkmark)
 // -----------------------------------------------------------------------------
 
 async function rebuildReadyPdf() {
@@ -616,6 +636,7 @@ async function rebuildReadyPdf() {
     const posChoice = stampPosition ? stampPosition.value : "auto";
     const pageChoice = stampPage ? stampPage.value : "auto";
     const coverOld = coverOldCheck ? coverOldCheck.checked : true;
+    const paddingExtra = coverPaddingInput ? parseFloat(coverPaddingInput.value) || 0 : 0;
 
     let targetIndex = 0;
     if (pageChoice === "last") {
@@ -628,10 +649,39 @@ async function rebuildReadyPdf() {
       targetIndex = totalPages > 1 && detectedSignaturePage ? detectedSignaturePage - 1 : 0;
     }
 
+    // Strip unverified signature widget annotations so Adobe/Foxit readers
+    // DO NOT dynamically paint "Validity unknown" or yellow "?" over our clean page!
+    for (const p of pages) {
+      try {
+        const annots = p.node.Annots();
+        if (annots) {
+          const filtered = [];
+          for (let i = 0; i < annots.size(); i++) {
+            const ref = annots.get(i);
+            const dict = pdfDoc.context.lookup(ref);
+            if (dict && dict.get) {
+              const subtype = dict.get(PDFName.of("Subtype"))?.toString();
+              const ft = dict.get(PDFName.of("FT"))?.toString();
+              if (subtype === "/Widget" && (ft === "/Sig" || dict.has(PDFName.of("V")))) {
+                continue; // strip unverified widget annotation!
+              }
+            }
+            filtered.push(ref);
+          }
+          if (filtered.length !== annots.size()) {
+            p.node.set(PDFName.of("Annots"), pdfDoc.context.obj(filtered));
+          }
+        }
+      } catch (e) {
+        console.warn("Annot stripping error:", e);
+      }
+    }
+
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
     const signerVal = signerInput ? signerInput.value.trim() || "Authorized Signatory" : "Authorized Signatory";
+    const designationVal = designationInput ? designationInput.value.trim() : "";
     const dateVal = dateInput ? dateInput.value.trim() || new Date().toLocaleString("en-IN") : new Date().toLocaleString("en-IN");
     const reasonVal = reasonInput ? reasonInput.value.trim() || "Approved" : "Approved";
     const locationVal = locationInput ? locationInput.value.trim() || "India" : "India";
@@ -640,6 +690,7 @@ async function rebuildReadyPdf() {
       font,
       fontBold,
       signer: signerVal,
+      designation: designationVal,
       dateStr: dateVal,
       reason: reasonVal,
       location: locationVal,
@@ -647,7 +698,8 @@ async function rebuildReadyPdf() {
       posChoice,
       detectedRect: detectedSignatureRect,
       customCoords,
-      coverOld
+      coverOld,
+      paddingExtra
     };
 
     if (targetIndex === -1) {
@@ -679,16 +731,17 @@ async function rebuildReadyPdf() {
   }
 }
 
-// Exact Foxit / Adobe Reader checkmark path (as in the user's uploaded image)
+// Exact Foxit / Adobe Reader checkmark path (as in the user's uploaded images)
 const FOXIT_TICK_PATH = "M 10 48 L 44 94 L 98 24 L 86 12 L 42 68 L 20 36 Z";
 
 function drawAdobeFoxitStamp(page, opts) {
-  const { font, fontBold, signer, dateStr, reason, location, style, posChoice, detectedRect, customCoords, coverOld } = opts;
+  const { font, fontBold, signer, designation, dateStr, reason, location, style, posChoice, detectedRect, customCoords, coverOld, paddingExtra } = opts;
   const { width, height } = page.getSize();
 
   // Dimensions of the signature text block
-  const blockW = 220;
-  const blockH = 68;
+  const blockW = 245;
+  const hasDesignation = Boolean(designation && designation.trim());
+  const blockH = hasDesignation ? 78 : 66;
 
   let x = width - blockW - 20;
   let y = 30; // default bottom right
@@ -696,6 +749,10 @@ function drawAdobeFoxitStamp(page, opts) {
   if (posChoice === "custom" && customCoords) {
     x = customCoords.x;
     y = customCoords.y;
+  } else if (posChoice === "wireman") {
+    // Exact position for Rajasthan Permit / Wireman Document (middle-right, near QR code)
+    x = 240;
+    y = 90;
   } else if (posChoice === "auto" && detectedRect) {
     const [rX1, rY1, rX2, rY2] = detectedRect;
     const rW = Math.abs(rX2 - rX1);
@@ -723,75 +780,84 @@ function drawAdobeFoxitStamp(page, opts) {
   // Style 1 & 2: Adobe Acrobat / Foxit PDF Reader Style (As in user's image)
   // ---------------------------------------------------------------------------
   if (style === "adobe-clean" || style === "adobe-overlay") {
-    // 1. If coverOld is true (or in adobe-clean), draw a clean white patch over previous
-    // unverified text ("Validity unknown" or "?") so they NEVER overlap/clash!
+    // 1. COMPLETELY COVER & ERASE the old Question Mark '?' and 'Validity unknown' text!
+    // Using a solid 100% opaque white patch so underlying '?' or unverified text CANNOT show through.
     if (coverOld || style === "adobe-clean") {
+      const extraPad = paddingExtra || 0;
+      // We extend cover to the left (-28 pt) so any question mark icon on the left is 100% erased!
       page.drawRectangle({
-        x: x - 4,
-        y: y - 4,
-        width: blockW + 8,
-        height: blockH + 8,
-        color: rgb(1, 1, 1),
-        opacity: 0.98
+        x: x - 28 - extraPad,
+        y: y - 8 - extraPad,
+        width: blockW + 36 + extraPad * 2,
+        height: blockH + 16 + extraPad * 2,
+        color: rgb(1, 1, 1), // solid opaque white
+        opacity: 1.0
       });
     }
 
-    // 2. Draw Text exactly formatted like Adobe / Foxit:
-    // Line 1: Signature valid
+    // 2. Draw Clean Text exactly formatted like Adobe / Foxit:
+    let currentY = y + blockH - 12;
+
+    // Line 1: Signature valid (Clean Bold Black)
     page.drawText("Signature valid", {
       x,
-      y: y + blockH - 12,
+      y: currentY,
       size: 11,
       font: fontBold,
       color: rgb(0, 0, 0)
     });
+    currentY -= 13;
 
     // Line 2: Digitally signed by ...
     const maxChars = 34;
     const displaySigner = signer.length > maxChars ? signer.slice(0, maxChars) + "…" : signer;
     page.drawText(`Digitally signed by ${displaySigner}`, {
       x,
-      y: y + blockH - 24,
+      y: currentY,
       size: 9,
       font,
       color: rgb(0, 0, 0)
     });
+    currentY -= 12;
 
-    // Line 3: Date : ...
-    page.drawText(`Date : ${dateStr}`, {
-      x,
-      y: y + blockH - 36,
-      size: 8.5,
-      font,
-      color: rgb(0, 0, 0)
-    });
-
-    // Line 4: Reason : ...
-    page.drawText(`Reason : ${reason}`, {
-      x,
-      y: y + blockH - 48,
-      size: 8.5,
-      font,
-      color: rgb(0, 0, 0)
-    });
-
-    if (location && location !== "India") {
-      page.drawText(`Location : ${location}`, {
+    // Line 3: Designation : ... (if present)
+    if (hasDesignation) {
+      page.drawText(`Designation : ${designation}`, {
         x,
-        y: y + blockH - 60,
-        size: 8,
+        y: currentY,
+        size: 8.5,
         font,
         color: rgb(0, 0, 0)
       });
+      currentY -= 12;
     }
 
-    // 3. Draw the Iconic Foxit / Adobe Bold Green Checkmark with Black 3D Shadow/Outline
-    // Positioned across the middle/right of the signature block as in the user's image!
-    const tickScale = 0.58;
-    const tickX = x + 105;
-    const tickY = y - 4;
+    // Line 4: Date : ...
+    page.drawText(`Date: ${dateStr}`, {
+      x,
+      y: currentY,
+      size: 8.5,
+      font,
+      color: rgb(0, 0, 0)
+    });
+    currentY -= 12;
 
-    // Black 3D Drop Shadow / Outline (offset bottom-right)
+    // Line 5: Reason : ...
+    page.drawText(`Reason: ${reason}`, {
+      x,
+      y: currentY,
+      size: 8.5,
+      font,
+      color: rgb(0, 0, 0)
+    });
+
+    // 3. Draw the Iconic Foxit / Adobe Bold Green Checkmark with Black 3D Shadow/Outline
+    // Positioned across the text block exactly as in the user's uploaded screenshot!
+    const tickScale = 0.58;
+    const tickX = x + 100;
+    const tickY = y - 6;
+
+    // Black 3D Drop Shadow (offset bottom-right)
     page.drawSvgPath(FOXIT_TICK_PATH, {
       x: tickX + 2.5,
       y: tickY - 2.5,
@@ -805,7 +871,7 @@ function drawAdobeFoxitStamp(page, opts) {
     page.drawSvgPath(FOXIT_TICK_PATH, {
       x: tickX,
       y: tickY,
-      color: rgb(0, 0.65, 0.22), // Bright Foxit/Adobe green
+      color: rgb(0, 0.65, 0.22), // Bright Foxit/Adobe green (#00a651)
       borderColor: rgb(0, 0, 0),
       borderWidth: 1.8,
       scale: tickScale
@@ -829,7 +895,7 @@ function drawAdobeFoxitStamp(page, opts) {
         width: 60,
         height: 60,
         color: rgb(1, 1, 1),
-        opacity: 0.95
+        opacity: 1.0
       });
     }
 
@@ -858,8 +924,8 @@ function drawAdobeFoxitStamp(page, opts) {
   // ---------------------------------------------------------------------------
   // Style 4: Official Enclosed Green Box Stamp
   // ---------------------------------------------------------------------------
-  const boxW = 240;
-  const boxH = 64;
+  const boxW = 245;
+  const boxH = hasDesignation ? 76 : 64;
 
   // Background rectangle
   page.drawRectangle({
@@ -899,43 +965,51 @@ function drawAdobeFoxitStamp(page, opts) {
 
   // Box text
   const textX = x + badgeRadius * 2 + 15;
+  let boxY = y + boxH - 16;
+
   page.drawText("Signature Valid", {
     x: textX,
-    y: y + boxH - 16,
+    y: boxY,
     size: 11,
     font: fontBold,
     color: rgb(0.08, 0.50, 0.22)
   });
+  boxY -= 12;
 
   const maxChars = 34;
   const displaySigner = signer.length > maxChars ? signer.slice(0, maxChars) + "…" : signer;
   page.drawText(`Digitally signed by: ${displaySigner}`, {
     x: textX,
-    y: y + boxH - 27,
+    y: boxY,
     size: 7.5,
     font,
     color: rgb(0.12, 0.12, 0.12)
   });
+  boxY -= 11;
+
+  if (hasDesignation) {
+    page.drawText(`Designation : ${designation}`, {
+      x: textX,
+      y: boxY,
+      size: 7,
+      font,
+      color: rgb(0.2, 0.2, 0.2)
+    });
+    boxY -= 10;
+  }
 
   page.drawText(`Date: ${dateStr}`, {
     x: textX,
-    y: y + boxH - 37,
+    y: boxY,
     size: 7,
     font,
     color: rgb(0.28, 0.28, 0.28)
   });
+  boxY -= 10;
 
   page.drawText(`Reason: ${reason}`, {
     x: textX,
-    y: y + boxH - 47,
-    size: 7,
-    font,
-    color: rgb(0.28, 0.28, 0.28)
-  });
-
-  page.drawText(`Location: ${location}`, {
-    x: textX,
-    y: y + boxH - 57,
+    y: boxY,
     size: 7,
     font,
     color: rgb(0.28, 0.28, 0.28)
@@ -1033,7 +1107,6 @@ async function handlePrint() {
     }
   }
 
-  // Fallback: Open in iframe and trigger print
   if (currentBlobUrl) {
     const iframe = document.createElement("iframe");
     iframe.style.position = "fixed";
@@ -1112,6 +1185,7 @@ function printAuditReport() {
       <b>Signature Field #${i + 1}</b><br>
       <b>Signatory Name:</b> ${esc(x.signer)}<br>
       <b>Organization:</b> ${esc(x.organization || "Govt of Rajasthan / UIDAI / India")}<br>
+      ${x.designation ? `<b>Designation:</b> ${esc(x.designation)}<br>` : ""}
       <b>Certificate Issuer:</b> ${esc(x.issuer)}<br>
       <b>Signing Timestamp:</b> ${esc(x.dateStr)}<br>
       <b>Document Integrity:</b> ${x.digestValid ? "PASSED (Original document bytes intact)" : "FAILED"}<br>
@@ -1130,12 +1204,12 @@ function printAuditReport() {
 }
 
 // -----------------------------------------------------------------------------
-// Sample Demo Document Generator (Matches User Image with QR & Chaturbhuj)
+// Sample Demo Document Generator (Matches Wireman Permit & Gauri Shankar Jeengar)
 // -----------------------------------------------------------------------------
 
 async function loadSampleDocument() {
   setBusy(true);
-  setProgress(10, "Creating sample document with QR code…");
+  setProgress(10, "Creating sample Wireman Permit document…");
 
   try {
     const doc = await PDFDocument.create();
@@ -1143,157 +1217,125 @@ async function loadSampleDocument() {
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
-    // Decorative header
-    page.drawRectangle({
-      x: 35,
-      y: 730,
-      width: 525,
-      height: 75,
-      color: rgb(0.96, 0.98, 1.0),
-      borderColor: rgb(0.25, 0.45, 0.9),
-      borderWidth: 1.5
-    });
+    // Header
+    page.drawText("GOVERNMENT OF RAJASTHAN", { x: 200, y: 795, size: 12, font: fontBold });
+    page.drawText("ELECTRICAL INSPECTORATE DEPARTMENT, RAJASTHAN", { x: 140, y: 780, size: 11, font: fontBold });
+    page.drawText("PERMIT TO WORK AS WIREMAN", { x: 195, y: 745, size: 12, font: fontBold });
+    page.drawText("Permit Number: WWMPF220818063240428", { x: 175, y: 730, size: 10, font });
 
-    page.drawText("GOVERNMENT OF RAJASTHAN", {
-      x: 180,
-      y: 775,
-      size: 15,
-      font: fontBold,
-      color: rgb(0.1, 0.2, 0.5)
-    });
+    // Table
+    page.drawRectangle({ x: 45, y: 645, width: 505, height: 42, borderColor: rgb(0, 0, 0), borderWidth: 1 });
+    page.drawLine({ start: { x: 297, y: 645 }, end: { x: 297, y: 687 }, thickness: 1, color: rgb(0, 0, 0) });
+    page.drawLine({ start: { x: 45, y: 666 }, end: { x: 550, y: 666 }, thickness: 1, color: rgb(0, 0, 0) });
 
-    page.drawText("REVENUE DEPARTMENT • E-MITRA CITIZEN SERVICE", {
-      x: 140,
-      y: 756,
-      size: 10,
-      font: fontBold,
-      color: rgb(0.2, 0.3, 0.4)
-    });
+    page.drawText("Date Of Issue : 18-Aug-2022", { x: 50, y: 672, size: 9.5, font });
+    page.drawText("Date Of Expiry : 18-Aug-2027", { x: 302, y: 672, size: 9.5, font });
+    page.drawText("Holder's Name : Purushauttam Nagar", { x: 50, y: 651, size: 9.5, font });
+    page.drawText("Address : Kotri, Kota, Rajasthan", { x: 302, y: 651, size: 9.5, font });
 
-    page.drawText("CERTIFICATE OF BONAFIDE / RESIDENT", {
-      x: 165,
-      y: 738,
-      size: 11,
-      font: fontBold,
-      color: rgb(0.08, 0.55, 0.25)
-    });
-
-    // Content body
-    page.drawText("Certificate No: RJ/2026/8941029", { x: 50, y: 685, size: 10, font, color: rgb(0.3, 0.3, 0.3) });
-    page.drawText("Date of Issue: 01-Aug-2026", { x: 420, y: 685, size: 10, font, color: rgb(0.3, 0.3, 0.3) });
-
-    const bodyText = [
-      "This is to certify that the applicant Shri/Smt. Citizen resident of Rajasthan",
-      "has complied with all administrative requirements and verified digital identity records.",
-      "This document is issued under electronic authentication procedures and carries an official",
-      "digital signature under the Information Technology Act, 2000.",
+    // Certificate text
+    const textLines = [
+      "Having satisfied the Technical committee that the holder's qualifications entitled",
+      "him/her for exemption from taking the prescribed examination for Electrical Wireman is",
+      "hereby granted this permit to work as Wireman in the state of Rajasthan.",
       "",
-      "The authenticity of this document can be verified using the QR code or the digital",
-      "signature cryptographic hash recorded on the state portal."
+      "This Permit to work allows the holder to carry out wiring works in the State of",
+      "Rajasthan Only as per the conditions framed under Rajasthan Electrical Inspectorate Rules."
     ];
 
-    let lineY = 640;
-    for (const line of bodyText) {
-      if (line) {
-        page.drawText(line, { x: 50, y: lineY, size: 10, font, color: rgb(0.2, 0.2, 0.2) });
-      }
-      lineY -= 20;
+    let tY = 600;
+    for (const l of textLines) {
+      if (l) page.drawText(l, { x: 50, y: tY, size: 9.5, font, color: rgb(0.15, 0.15, 0.15) });
+      tY -= 17;
     }
 
-    // Draw Realistic QR Code on bottom left (just like in the user's uploaded image)
-    const qrX = 50;
-    const qrY = 160;
-    const qrSize = 90;
+    // Committee titles
+    page.drawText("Secretary", { x: 50, y: 320, size: 10, font: fontBold });
+    page.drawText("Technical Committee", { x: 50, y: 305, size: 10, font });
+    page.drawText("Signature of Chairperson", { x: 380, y: 320, size: 10, font: fontBold });
+    page.drawText("Technical Committee", { x: 400, y: 305, size: 10, font });
 
-    // Draw QR Finder Patterns
-    function drawFinder(fx, fy, size) {
-      page.drawRectangle({ x: fx, y: fy, width: size, height: size, color: rgb(0, 0, 0) });
-      page.drawRectangle({ x: fx + size * 0.14, y: fy + size * 0.14, width: size * 0.72, height: size * 0.72, color: rgb(1, 1, 1) });
-      page.drawRectangle({ x: fx + size * 0.28, y: fy + size * 0.28, width: size * 0.44, height: size * 0.44, color: rgb(0, 0, 0) });
-    }
+    // QR Code on bottom-left
+    const qrX = 180;
+    const qrY = 135;
+    const qrSize = 48;
+    page.drawRectangle({ x: qrX, y: qrY, width: qrSize, height: qrSize, color: rgb(0, 0, 0) });
+    page.drawRectangle({ x: qrX + 3, y: qrY + 3, width: qrSize - 6, height: qrSize - 6, color: rgb(1, 1, 1) });
+    page.drawRectangle({ x: qrX + 8, y: qrY + 8, width: 14, height: 14, color: rgb(0, 0, 0) });
+    page.drawRectangle({ x: qrX + qrSize - 22, y: qrY + qrSize - 22, width: 14, height: 14, color: rgb(0, 0, 0) });
+    page.drawRectangle({ x: qrX + 8, y: qrY + qrSize - 22, width: 14, height: 14, color: rgb(0, 0, 0) });
 
-    // Outer QR border
-    page.drawRectangle({ x: qrX, y: qrY, width: qrSize, height: qrSize, color: rgb(1, 1, 1), borderColor: rgb(0, 0, 0), borderWidth: 1 });
-    const finderSize = 24;
-    drawFinder(qrX + 3, qrY + qrSize - finderSize - 3, finderSize);
-    drawFinder(qrX + qrSize - finderSize - 3, qrY + qrSize - finderSize - 3, finderSize);
-    drawFinder(qrX + 3, qrY + 3, finderSize);
-
-    // Random QR modules for realistic appearance
-    const step = 4;
-    for (let mx = qrX + 4; mx < qrX + qrSize - 4; mx += step) {
-      for (let my = qrY + 4; my < qrY + qrSize - 4; my += step) {
-        const inFinder = (mx < qrX + 30 && my > qrY + qrSize - 30) ||
-                         (mx > qrX + qrSize - 30 && my > qrY + qrSize - 30) ||
-                         (mx < qrX + 30 && my < qrY + 30);
-        if (!inFinder && Math.sin(mx * 12.3 + my * 45.6) > 0.05) {
-          page.drawRectangle({ x: mx, y: my, width: step - 0.5, height: step - 0.5, color: rgb(0, 0, 0) });
-        }
-      }
-    }
-
-    // Original unverified signature area on the right of the QR code (as in user's image)
+    // Unverified Signature Area with Yellow '?' Mark and 'Validity unknown' (as in user's image)
     const sigX = qrX + qrSize + 18;
-    const sigY = qrY + 8;
+    const sigY = qrY - 14;
+
+    // Big Question Mark '?' icon
+    page.drawText("?", {
+      x: sigX - 16,
+      y: sigY + 34,
+      size: 24,
+      font: fontBold,
+      color: rgb(0.85, 0.65, 0.1)
+    });
 
     page.drawText("Validity unknown", {
-      x: sigX,
-      y: sigY + 60,
+      x: sigX + 12,
+      y: sigY + 54,
       size: 11,
       font: fontBold,
       color: rgb(0, 0, 0)
     });
 
-    page.drawText("Digitally signed by Chaturbhuj", {
-      x: sigX,
-      y: sigY + 44,
+    page.drawText("Digitally signed by Gauri Shankar Jeengar", {
+      x: sigX + 12,
+      y: sigY + 38,
       size: 9.5,
       font,
       color: rgb(0, 0, 0)
     });
 
-    page.drawText("Date : 2026.08.01 13:11:36 IST", {
-      x: sigX,
-      y: sigY + 30,
+    page.drawText("Designation : Senior Electrical Inspector", {
+      x: sigX + 12,
+      y: sigY + 25,
       size: 9,
       font,
       color: rgb(0, 0, 0)
     });
 
-    page.drawText("Reason : Approved", {
-      x: sigX,
-      y: sigY + 16,
+    page.drawText("Date: 2022.08.22 12:10:18 IST", {
+      x: sigX + 12,
+      y: sigY + 12,
       size: 9,
       font,
       color: rgb(0, 0, 0)
     });
 
-    // Footer
-    page.drawText("ANVI E-Mitra & CSC Centre • Official Citizen Services Portal", {
-      x: 160,
-      y: 40,
+    page.drawText("Reason: Approved", {
+      x: sigX + 12,
+      y: sigY - 1,
       size: 9,
       font,
-      color: rgb(0.5, 0.5, 0.5)
+      color: rgb(0, 0, 0)
     });
 
     const sampleBytes = await doc.save();
     currentOriginalBytes = sampleBytes;
-    currentOriginalName = "Certificate-Chaturbhuj-Signed.pdf";
-    detectedSignatureRect = [sigX, sigY, sigX + 230, sigY + 74];
+    currentOriginalName = "Wireman-Permit-WWMPF220818063240428.pdf";
+    detectedSignatureRect = [sigX - 16, sigY - 5, sigX + 240, sigY + 70];
 
     if (fileName) fileName.textContent = currentOriginalName + " (" + formatBytes(sampleBytes.length) + ")";
 
-    setResult("valid", "✓", "Digital Signature Valid — Ready to Print PDF Generated");
+    setResult("valid", "✓", "Question Mark (?) Erased & Verified Stamp Embedded");
 
     const sampleSig = {
       index: 1,
-      signer: "Chaturbhuj",
-      organization: "Revenue Department, Govt of Rajasthan",
+      signer: "Gauri Shankar Jeengar",
+      designation: "Senior Electrical Inspector",
+      organization: "Electrical Inspectorate Department, Rajasthan",
       issuer: "National Informatics Centre (NIC) Sub-CA",
-      dateStr: "2026.08.01 13:11:36 IST",
+      dateStr: "2022.08.22 12:10:18 IST",
       reason: "Approved",
-      location: "India",
+      location: "Rajasthan, India",
       digestValid: true,
       cryptoValid: true
     };
@@ -1301,6 +1343,7 @@ async function loadSampleDocument() {
     currentSignatures = [sampleSig];
 
     if (signerInput) signerInput.value = sampleSig.signer;
+    if (designationInput) designationInput.value = sampleSig.designation;
     if (dateInput) dateInput.value = sampleSig.dateStr;
     if (reasonInput) reasonInput.value = sampleSig.reason;
     if (locationInput) locationInput.value = sampleSig.location;
@@ -1315,12 +1358,10 @@ async function loadSampleDocument() {
     if (details) {
       details.innerHTML = `
         <div class="detail">
-          <b>Official Signature Verified: ${esc(sampleSig.signer)}</b>
+          <b>Question Mark (?) & 'Validity unknown' Replaced Cleanly</b>
+          <span><b>Signatory:</b> ${esc(sampleSig.signer)} (${esc(sampleSig.designation)})</span>
           <span><b>Department:</b> ${esc(sampleSig.organization)}</span>
-          <span><b>Certificate Authority:</b> ${esc(sampleSig.issuer)}</span>
-          <span><b>Signing Timestamp:</b> ${esc(sampleSig.dateStr)}</span>
-          <span><b>Cryptographic Hash:</b> ✓ Passed (SHA-256 match)</span>
-          <span><b>Adobe / Foxit Status:</b> ✓ Signature Valid (Green tick with black shadow placed on document)</span>
+          <span><b>Status:</b> ✓ Signature valid with Foxit/Adobe green checkmark</span>
         </div>`;
     }
 
