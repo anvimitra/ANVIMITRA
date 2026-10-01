@@ -9,9 +9,9 @@
 </head>
 <body><div class="wrap"><div class="top"><div class="brand">ANVI E-Mitra</div><a class="back" href="./index.html">← All Services</a></div>
 <section class="hero"><div>🔐 Secure document tool</div><h1>PDF Digital Signature Validator</h1><p>Digitally signed PDF upload करें। Service PDF signature की cryptographic integrity check करेगी और result दिखाएगी।</p></section>
-<div class="card"><div id="dropzone"><div class="upload-icon">📄</div><h2>Upload Signed PDF</h2><div class="file">File आपके device पर ही process होती है।</div><button id="chooseBtn" class="choose">Choose PDF</button><input id="pdfFile" type="file" accept="application/pdf,.pdf" hidden><div id="busy" class="busy" hidden>Signature verify हो रही है…</div></div>
+<div class="card"><div id="dropzone"><div class="upload-icon">📄</div><h2>Upload Signed PDF</h2><div class="file">PDF secure signature-validation server पर standard PAdES validation के लिए process होगी।</div><button id="chooseBtn" class="choose">Choose PDF</button><input id="pdfFile" type="file" accept="application/pdf,.pdf" hidden><div id="busy" class="busy" hidden>Signature verify हो रही है…</div></div>
 <div id="result" class="result idle"><div class="mark">✓</div><div><div class="status">Waiting for PDF</div><div id="fileName" class="file">No file selected</div></div></div>
-<div id="details"></div><div class="actions"><button id="printBtn" class="action" hidden>🖨️ Print Validation Report / Save PDF</button><button id="openBtn" class="action" hidden>↗ Open Original PDF</button></div>
+<div id="details"></div><div class="actions"><button id="printBtn" class="action" hidden>✓ Verified PDF Generated</button></div>
 <div class="note">Important: valid signature मिलने पर uploaded PDF की pages वाली एक नई copy automatically download होगी, जिसमें first page पर “SIGNATURE VERIFIED” stamp होगा। Original signed PDF को बदला नहीं जाता। यह stamped copy post-validation copy है; original signature की cryptographic validity uploaded original पर verify की जाती है। Certificate trust-chain/revocation status अलग verification है।</div>
 </div></div>
 <script type="module" src="./src/signature-validator.js"></script></body></html>
