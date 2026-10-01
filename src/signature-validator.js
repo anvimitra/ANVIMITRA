@@ -1,4 +1,4 @@
-import * as pkijs from "pkijs";
+import * as pkijs from "https://esm.sh/pkijs@3.4.1?bundle";
 
 const fileInput = document.getElementById("pdfFile");
 const dropzone = document.getElementById("dropzone");
