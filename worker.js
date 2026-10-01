@@ -15,12 +15,12 @@ async function dss(path,payload){
 }
 
 function extractSimple(report){
-  const simple=report?.simpleReport||report?.simpleValidationReport||report?.simpleReportDTO||{};
-  const signatures=simple?.signatures||simple?.signatureReports||[];
-  const first=signatures[0]||{};
-  const status=String(first?.indication||first?.validationStatus||first?.status||"").toUpperCase();
-  const valid=!["TOTAL-PASSED","PASSED","VALID"].every(()=>true) ? false : (status.includes("PASSED")||status.includes("VALID"));
-  return {status,valid,signatures};
+  const simple=report?.SimpleReport||report?.simpleReport||report?.simpleValidationReport||report?.simpleReportDTO||{};
+  const signatures=simple?.Signature||simple?.signatures||simple?.signatureReports||[];
+  const list=Array.isArray(signatures)?signatures:[signatures];
+  const statuses=list.map(x=>String(x?.Indication||x?.indication||x?.ValidationStatus||x?.validationStatus||x?.status||"").toUpperCase());
+  const valid=statuses.length>0 && statuses.every(x=>x==="TOTAL-PASSED"||x==="PASSED"||x==="VALID"||x.includes("TOTAL-PASSED"));
+  return {status:statuses.join(", "),valid,signatures:list};
 }
 
 async function handle(request){
