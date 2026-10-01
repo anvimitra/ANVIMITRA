@@ -27,6 +27,10 @@ const stampStyle = $("stampStyle");
 const stampPosition = $("stampPosition");
 const stampPage = $("stampPage");
 const coverOldCheck = $("coverOldCheck");
+const tickPositionInput = $("tickPositionInput");
+const tickScaleInput = $("tickScaleInput");
+const stampWidthInput = $("stampWidthInput");
+const stampHeightInput = $("stampHeightInput");
 const coverPaddingInput = $("coverPaddingInput");
 
 const signerInput = $("signerInput");
@@ -101,6 +105,10 @@ if (auditBtn) auditBtn.onclick = printAuditReport;
   stampPosition,
   stampPage,
   coverOldCheck,
+  tickPositionInput,
+  tickScaleInput,
+  stampWidthInput,
+  stampHeightInput,
   coverPaddingInput,
   signerInput,
   designationInput,
@@ -621,7 +629,7 @@ async function processPdfBytes(bytes, docName) {
 }
 
 // -----------------------------------------------------------------------------
-// Ready to Print PDF Generation (Replaces '?' and renders Foxit/Adobe Checkmark)
+// Ready to Print PDF Generation: Right Mark in Background & Exact Position
 // -----------------------------------------------------------------------------
 
 async function rebuildReadyPdf() {
@@ -636,7 +644,12 @@ async function rebuildReadyPdf() {
     const posChoice = stampPosition ? stampPosition.value : "auto";
     const pageChoice = stampPage ? stampPage.value : "auto";
     const coverOld = coverOldCheck ? coverOldCheck.checked : true;
-    const paddingExtra = coverPaddingInput ? parseFloat(coverPaddingInput.value) || 0 : 0;
+
+    const userWidth = stampWidthInput ? parseFloat(stampWidthInput.value) || 0 : 0;
+    const userHeight = stampHeightInput ? parseFloat(stampHeightInput.value) || 0 : 0;
+    const tickScaleVal = tickScaleInput ? parseFloat(tickScaleInput.value) || 0.55 : 0.55;
+    const tickPosChoice = tickPositionInput ? tickPositionInput.value : "center";
+    const coverPaddingVal = coverPaddingInput ? parseFloat(coverPaddingInput.value) || 0 : 0;
 
     let targetIndex = 0;
     if (pageChoice === "last") {
@@ -699,7 +712,11 @@ async function rebuildReadyPdf() {
       detectedRect: detectedSignatureRect,
       customCoords,
       coverOld,
-      paddingExtra
+      userWidth,
+      userHeight,
+      tickScale: tickScaleVal,
+      tickAlign: tickPosChoice,
+      coverPadding: coverPaddingVal
     };
 
     if (targetIndex === -1) {
@@ -735,13 +752,47 @@ async function rebuildReadyPdf() {
 const FOXIT_TICK_PATH = "M 10 48 L 44 94 L 98 24 L 86 12 L 42 68 L 20 36 Z";
 
 function drawAdobeFoxitStamp(page, opts) {
-  const { font, fontBold, signer, designation, dateStr, reason, location, style, posChoice, detectedRect, customCoords, coverOld, paddingExtra } = opts;
+  const {
+    font,
+    fontBold,
+    signer,
+    designation,
+    dateStr,
+    reason,
+    location,
+    style,
+    posChoice,
+    detectedRect,
+    customCoords,
+    coverOld,
+    userWidth,
+    userHeight,
+    tickScale,
+    tickAlign = "center",
+    coverPadding = 0
+  } = opts;
   const { width, height } = page.getSize();
 
-  // Dimensions of the signature text block
-  const blockW = 245;
+  // Automatic multi-line name splitting for long names (e.g. "Gauri Shankar Jeengar")
+  let signerLine1 = signer;
+  let signerLine2 = "";
+  if (signer.length > 22 && signer.includes(" ")) {
+    const parts = signer.split(" ");
+    const mid = Math.ceil(parts.length / 2);
+    signerLine1 = parts.slice(0, mid).join(" ");
+    signerLine2 = parts.slice(mid).join(" ");
+  }
+
   const hasDesignation = Boolean(designation && designation.trim());
-  const blockH = hasDesignation ? 78 : 66;
+  const hasLine2 = Boolean(signerLine2);
+
+  // Calculate default height based on line count
+  let calculatedHeight = 72;
+  if (hasDesignation) calculatedHeight += 12;
+  if (hasLine2) calculatedHeight += 11;
+
+  let blockW = userWidth > 0 ? userWidth : 245;
+  let blockH = userHeight > 0 ? userHeight : calculatedHeight;
 
   let x = width - blockW - 20;
   let y = 30; // default bottom right
@@ -750,16 +801,20 @@ function drawAdobeFoxitStamp(page, opts) {
     x = customCoords.x;
     y = customCoords.y;
   } else if (posChoice === "wireman") {
-    // Exact position for Rajasthan Permit / Wireman Document (middle-right, near QR code)
-    x = 240;
-    y = 90;
+    // Exact location in Wireman Permit next to QR code (matching original document):
+    x = 265;
+    y = 118;
   } else if (posChoice === "auto" && detectedRect) {
+    // EXACT coordinates where question mark / signature rectangle is in the PDF!
     const [rX1, rY1, rX2, rY2] = detectedRect;
     const rW = Math.abs(rX2 - rX1);
     const rH = Math.abs(rY2 - rY1);
-    if (rW >= 30 && rH >= 15) {
+    if (rW >= 25 && rH >= 12) {
       x = Math.min(rX1, rX2);
       y = Math.min(rY1, rY2);
+      // Use exact width & height of the question mark field if reasonable
+      if (userWidth <= 0 && rW >= 150) blockW = rW;
+      if (userHeight <= 0 && rH >= 50) blockH = rH;
     }
   } else if (posChoice === "bottom-left") {
     x = 24;
@@ -773,34 +828,85 @@ function drawAdobeFoxitStamp(page, opts) {
   }
 
   // Bound within page
-  x = Math.max(6, Math.min(width - blockW - 6, x));
-  y = Math.max(6, Math.min(height - blockH - 6, y));
+  x = Math.max(4, Math.min(width - blockW - 4, x));
+  y = Math.max(4, Math.min(height - blockH - 4, y));
+
+  // Determine tick scale (matching question mark size if detected)
+  let scale = tickScale || 0.55;
+  if (!tickScale && detectedRect) {
+    const rH = Math.abs(detectedRect[3] - detectedRect[1]);
+    if (rH >= 30) {
+      scale = Math.min(0.75, Math.max(0.42, (rH * 0.70) / 82));
+    }
+  }
+  const tickW = 88 * scale;
+  const tickH = 82 * scale;
 
   // ---------------------------------------------------------------------------
   // Style 1 & 2: Adobe Acrobat / Foxit PDF Reader Style (As in user's image)
   // ---------------------------------------------------------------------------
   if (style === "adobe-clean" || style === "adobe-overlay") {
-    // 1. COMPLETELY COVER & ERASE the old Question Mark '?' and 'Validity unknown' text!
-    // Using a solid 100% opaque white patch so underlying '?' or unverified text CANNOT show through.
+    const extraPad = coverPadding || 0;
+
+    // 1. FIRST: Solid 100% white cover patch to ERASE the old '?' mark and 'Validity unknown'
     if (coverOld || style === "adobe-clean") {
-      const extraPad = paddingExtra || 0;
-      // We extend cover to the left (-28 pt) so any question mark icon on the left is 100% erased!
       page.drawRectangle({
-        x: x - 28 - extraPad,
+        x: x - 18 - extraPad,
         y: y - 8 - extraPad,
-        width: blockW + 36 + extraPad * 2,
+        width: blockW + 28 + extraPad * 2,
         height: blockH + 16 + extraPad * 2,
         color: rgb(1, 1, 1), // solid opaque white
         opacity: 1.0
       });
     }
 
-    // 2. Draw Clean Text exactly formatted like Adobe / Foxit:
+    // 2. SECOND: DRAW THE "RIGHT" (GREEN CHECKMARK) IN THE BACKGROUND!
+    // ("right background m rahe" -> Checkmark drawn BEFORE text so it stays behind!)
+    let tickX;
+    let tickY = y + (blockH - tickH) / 2;
+    let textX = x;
+
+    if (tickAlign === "left") {
+      // Placed on left where the '?' icon was, with text beside it
+      tickX = x;
+      textX = x + tickW + 6;
+    } else if (tickAlign === "right") {
+      // Placed across right side in background
+      tickX = x + blockW * 0.52;
+      textX = x;
+    } else {
+      // Default: Center Background (Foxit / Adobe Standard Watermark behind text)
+      tickX = x + (blockW - tickW) / 2 + 10;
+      textX = x;
+    }
+
+    // Black 3D drop shadow (underneath green body)
+    page.drawSvgPath(FOXIT_TICK_PATH, {
+      x: tickX + 2.2,
+      y: tickY - 2.2,
+      color: rgb(0, 0, 0),
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 1.5,
+      scale
+    });
+
+    // Vibrant Green Tick Body with solid black edge
+    page.drawSvgPath(FOXIT_TICK_PATH, {
+      x: tickX,
+      y: tickY,
+      color: rgb(0, 0.65, 0.22), // Bright Foxit/Adobe green (#00a651)
+      borderColor: rgb(0, 0, 0),
+      borderWidth: 1.8,
+      scale
+    });
+
+    // 3. THIRD: DRAW THE TEXT ON TOP OF THE GREEN CHECKMARK (FOREGROUND)!
+    // Text is drawn ON TOP of the checkmark so letters are crisp, black and 100% un-obscured!
     let currentY = y + blockH - 12;
 
-    // Line 1: Signature valid (Clean Bold Black)
+    // Line 1: Signature valid
     page.drawText("Signature valid", {
-      x,
+      x: textX,
       y: currentY,
       size: 11,
       font: fontBold,
@@ -809,72 +915,56 @@ function drawAdobeFoxitStamp(page, opts) {
     currentY -= 13;
 
     // Line 2: Digitally signed by ...
-    const maxChars = 34;
-    const displaySigner = signer.length > maxChars ? signer.slice(0, maxChars) + "…" : signer;
-    page.drawText(`Digitally signed by ${displaySigner}`, {
-      x,
+    page.drawText(`Digitally signed by ${signerLine1}`, {
+      x: textX,
       y: currentY,
       size: 9,
       font,
       color: rgb(0, 0, 0)
     });
-    currentY -= 12;
+    currentY -= 11;
+
+    // Line 2b: Signer second line if long name
+    if (hasLine2) {
+      page.drawText(signerLine2, {
+        x: textX,
+        y: currentY,
+        size: 9,
+        font,
+        color: rgb(0, 0, 0)
+      });
+      currentY -= 11;
+    }
 
     // Line 3: Designation : ... (if present)
     if (hasDesignation) {
       page.drawText(`Designation : ${designation}`, {
-        x,
+        x: textX,
         y: currentY,
         size: 8.5,
         font,
         color: rgb(0, 0, 0)
       });
-      currentY -= 12;
+      currentY -= 11;
     }
 
     // Line 4: Date : ...
     page.drawText(`Date: ${dateStr}`, {
-      x,
+      x: textX,
       y: currentY,
       size: 8.5,
       font,
       color: rgb(0, 0, 0)
     });
-    currentY -= 12;
+    currentY -= 11;
 
     // Line 5: Reason : ...
     page.drawText(`Reason: ${reason}`, {
-      x,
+      x: textX,
       y: currentY,
       size: 8.5,
       font,
       color: rgb(0, 0, 0)
-    });
-
-    // 3. Draw the Iconic Foxit / Adobe Bold Green Checkmark with Black 3D Shadow/Outline
-    // Positioned across the text block exactly as in the user's uploaded screenshot!
-    const tickScale = 0.58;
-    const tickX = x + 100;
-    const tickY = y - 6;
-
-    // Black 3D Drop Shadow (offset bottom-right)
-    page.drawSvgPath(FOXIT_TICK_PATH, {
-      x: tickX + 2.5,
-      y: tickY - 2.5,
-      color: rgb(0, 0, 0),
-      borderColor: rgb(0, 0, 0),
-      borderWidth: 1.5,
-      scale: tickScale
-    });
-
-    // Vibrant Green Tick Body with Solid Black Edge
-    page.drawSvgPath(FOXIT_TICK_PATH, {
-      x: tickX,
-      y: tickY,
-      color: rgb(0, 0.65, 0.22), // Bright Foxit/Adobe green (#00a651)
-      borderColor: rgb(0, 0, 0),
-      borderWidth: 1.8,
-      scale: tickScale
     });
 
     return;
@@ -884,16 +974,18 @@ function drawAdobeFoxitStamp(page, opts) {
   // Style 3: Green Checkmark Only (to place directly over existing '?')
   // ---------------------------------------------------------------------------
   if (style === "tick-only") {
-    const tickScale = 0.65;
-    const tickX = x + 20;
-    const tickY = y;
+    const scale = tickScale || 0.55;
+    const tickW = 88 * scale;
+    const tickH = 82 * scale;
+    const tickX = x;
+    const tickY = y + (blockH - tickH) / 2;
 
     if (coverOld) {
       page.drawRectangle({
         x: tickX - 8,
         y: tickY - 8,
-        width: 60,
-        height: 60,
+        width: tickW + 16,
+        height: tickH + 16,
         color: rgb(1, 1, 1),
         opacity: 1.0
       });
@@ -901,12 +993,12 @@ function drawAdobeFoxitStamp(page, opts) {
 
     // Black drop shadow
     page.drawSvgPath(FOXIT_TICK_PATH, {
-      x: tickX + 3,
-      y: tickY - 3,
+      x: tickX + 2.2,
+      y: tickY - 2.2,
       color: rgb(0, 0, 0),
       borderColor: rgb(0, 0, 0),
       borderWidth: 1.5,
-      scale: tickScale
+      scale
     });
 
     // Green tick
@@ -916,7 +1008,7 @@ function drawAdobeFoxitStamp(page, opts) {
       color: rgb(0, 0.65, 0.22),
       borderColor: rgb(0, 0, 0),
       borderWidth: 1.8,
-      scale: tickScale
+      scale
     });
     return;
   }
@@ -924,8 +1016,8 @@ function drawAdobeFoxitStamp(page, opts) {
   // ---------------------------------------------------------------------------
   // Style 4: Official Enclosed Green Box Stamp
   // ---------------------------------------------------------------------------
-  const boxW = 245;
-  const boxH = hasDesignation ? 76 : 64;
+  const boxW = blockW;
+  const boxH = blockH;
 
   // Background rectangle
   page.drawRectangle({
@@ -976,16 +1068,25 @@ function drawAdobeFoxitStamp(page, opts) {
   });
   boxY -= 12;
 
-  const maxChars = 34;
-  const displaySigner = signer.length > maxChars ? signer.slice(0, maxChars) + "…" : signer;
-  page.drawText(`Digitally signed by: ${displaySigner}`, {
+  page.drawText(`Digitally signed by: ${signerLine1}`, {
     x: textX,
     y: boxY,
     size: 7.5,
     font,
     color: rgb(0.12, 0.12, 0.12)
   });
-  boxY -= 11;
+  boxY -= 10;
+
+  if (hasLine2) {
+    page.drawText(signerLine2, {
+      x: textX,
+      y: boxY,
+      size: 7.5,
+      font,
+      color: rgb(0.12, 0.12, 0.12)
+    });
+    boxY -= 10;
+  }
 
   if (hasDesignation) {
     page.drawText(`Designation : ${designation}`, {
@@ -1266,53 +1367,61 @@ async function loadSampleDocument() {
     page.drawRectangle({ x: qrX + 8, y: qrY + qrSize - 22, width: 14, height: 14, color: rgb(0, 0, 0) });
 
     // Unverified Signature Area with Yellow '?' Mark and 'Validity unknown' (as in user's image)
-    const sigX = qrX + qrSize + 18;
-    const sigY = qrY - 14;
+    const sigX = 265;
+    const sigY = 118;
 
     // Big Question Mark '?' icon
     page.drawText("?", {
-      x: sigX - 16,
-      y: sigY + 34,
-      size: 24,
+      x: sigX,
+      y: sigY + 32,
+      size: 26,
       font: fontBold,
       color: rgb(0.85, 0.65, 0.1)
     });
 
     page.drawText("Validity unknown", {
-      x: sigX + 12,
-      y: sigY + 54,
+      x: sigX + 28,
+      y: sigY + 52,
       size: 11,
       font: fontBold,
       color: rgb(0, 0, 0)
     });
 
-    page.drawText("Digitally signed by Gauri Shankar Jeengar", {
-      x: sigX + 12,
+    page.drawText("Digitally signed by Gauri Shankar", {
+      x: sigX + 28,
       y: sigY + 38,
       size: 9.5,
       font,
       color: rgb(0, 0, 0)
     });
 
+    page.drawText("Jeengar", {
+      x: sigX + 28,
+      y: sigY + 26,
+      size: 9.5,
+      font,
+      color: rgb(0, 0, 0)
+    });
+
     page.drawText("Designation : Senior Electrical Inspector", {
-      x: sigX + 12,
-      y: sigY + 25,
+      x: sigX + 28,
+      y: sigY + 14,
       size: 9,
       font,
       color: rgb(0, 0, 0)
     });
 
     page.drawText("Date: 2022.08.22 12:10:18 IST", {
-      x: sigX + 12,
-      y: sigY + 12,
+      x: sigX + 28,
+      y: sigY + 2,
       size: 9,
       font,
       color: rgb(0, 0, 0)
     });
 
     page.drawText("Reason: Approved", {
-      x: sigX + 12,
-      y: sigY - 1,
+      x: sigX + 28,
+      y: sigY - 10,
       size: 9,
       font,
       color: rgb(0, 0, 0)
@@ -1321,7 +1430,7 @@ async function loadSampleDocument() {
     const sampleBytes = await doc.save();
     currentOriginalBytes = sampleBytes;
     currentOriginalName = "Wireman-Permit-WWMPF220818063240428.pdf";
-    detectedSignatureRect = [sigX - 16, sigY - 5, sigX + 240, sigY + 70];
+    detectedSignatureRect = [sigX, sigY - 8, sigX + 245, sigY + 76];
 
     if (fileName) fileName.textContent = currentOriginalName + " (" + formatBytes(sampleBytes.length) + ")";
 
@@ -1361,7 +1470,7 @@ async function loadSampleDocument() {
           <b>Question Mark (?) & 'Validity unknown' Replaced Cleanly</b>
           <span><b>Signatory:</b> ${esc(sampleSig.signer)} (${esc(sampleSig.designation)})</span>
           <span><b>Department:</b> ${esc(sampleSig.organization)}</span>
-          <span><b>Status:</b> ✓ Signature valid with Foxit/Adobe green checkmark</span>
+          <span><b>Status:</b> ✓ Right (Green Tick) in background, clean text in foreground</span>
         </div>`;
     }
 

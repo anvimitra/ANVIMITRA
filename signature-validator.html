@@ -660,6 +660,31 @@ body {
           <input id="locationInput" type="text" value="Rajasthan, India">
         </div>
         <div class="field">
+          <label>Right Mark (✓) Layer & Placement</label>
+          <select id="tickPositionInput">
+            <option value="center" selected>Background Center (Adobe/Foxit Standard - Behind Text)</option>
+            <option value="left">Left Side (Where '?' Icon was)</option>
+            <option value="right">Background Right-Center (Behind Text)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Right Mark (✓) Size / Scale</label>
+          <select id="tickScaleInput">
+            <option value="0.45">Small (37 pt - Exact '?' icon size)</option>
+            <option value="0.55" selected>Medium (45 pt - Adobe Standard)</option>
+            <option value="0.65">Large (54 pt - Foxit Style)</option>
+            <option value="0.75">Extra Large (62 pt - Full Field)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Stamp Box Width (pt)</label>
+          <input id="stampWidthInput" type="number" min="150" max="400" step="10" placeholder="Auto (245)">
+        </div>
+        <div class="field">
+          <label>Stamp Box Height (pt)</label>
+          <input id="stampHeightInput" type="number" min="40" max="150" step="5" placeholder="Auto (75)">
+        </div>
+        <div class="field">
           <label>Cover Extra Padding (pt)</label>
           <input id="coverPaddingInput" type="number" min="0" max="40" step="2" value="0" placeholder="0">
         </div>
