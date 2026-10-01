@@ -8,5 +8,6 @@
     "run_worker_first": ["/api/*"],
     "not_found_handling": "404-page"
   },
-  "main": "worker.js"
+  "main": "./worker.js",
+  "compatibility_flags": ["nodejs_compat"]
 }
