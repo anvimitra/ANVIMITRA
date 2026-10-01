@@ -1,172 +1,76 @@
-import * as pkijs from "https://esm.sh/pkijs@3.4.1?bundle";
+import * as pkijs from "https://cdn.jsdelivr.net/npm/pkijs@3.2.4/+esm";
+import * as asn1js from "https://cdn.jsdelivr.net/npm/asn1js@3.0.5/+esm";
 
-const fileInput = document.getElementById("pdfFile");
-const dropzone = document.getElementById("dropzone");
-const chooseBtn = document.getElementById("chooseBtn");
-const result = document.getElementById("result");
-const details = document.getElementById("details");
-const fileName = document.getElementById("fileName");
-const printBtn = document.getElementById("printBtn");
-const openBtn = document.getElementById("openBtn");
-const busy = document.getElementById("busy");
+const $ = id => document.getElementById(id);
+const fileInput=$("pdfFile"), dropzone=$("dropzone"), chooseBtn=$("chooseBtn"), result=$("result");
+const details=$("details"), fileName=$("fileName"), printBtn=$("printBtn"), openBtn=$("openBtn"), busy=$("busy");
+let currentUrl="", lastReport=null;
 
-let currentUrl = "";
-let lastReport = null;
+chooseBtn.onclick=()=>fileInput.click();
+fileInput.onchange=()=>fileInput.files[0]&&validate(fileInput.files[0]);
+["dragenter","dragover"].forEach(e=>dropzone.addEventListener(e,x=>{x.preventDefault();dropzone.classList.add("drag")}));
+["dragleave","drop"].forEach(e=>dropzone.addEventListener(e,x=>{x.preventDefault();dropzone.classList.remove("drag")}));
+dropzone.addEventListener("drop",e=>{const f=e.dataTransfer.files?.[0];if(f)validate(f)});
+printBtn.onclick=printReport;
+openBtn.onclick=()=>currentUrl&&window.open(currentUrl,"_blank","noopener");
 
-chooseBtn.addEventListener("click", () => fileInput.click());
-fileInput.addEventListener("change", () => fileInput.files[0] && validate(fileInput.files[0]));
-["dragenter","dragover"].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.add("drag"); }));
-["dragleave","drop"].forEach(e => dropzone.addEventListener(e, ev => { ev.preventDefault(); dropzone.classList.remove("drag"); }));
-dropzone.addEventListener("drop", ev => {
-  const file = ev.dataTransfer.files?.[0];
-  if (file) validate(file);
-});
-printBtn.addEventListener("click", printReport);
-openBtn.addEventListener("click", () => currentUrl && window.open(currentUrl, "_blank", "noopener"));
-
-function setBusy(on) {
-  busy.hidden = !on;
-  chooseBtn.disabled = on;
-}
-
-function hexToBytes(hex) {
-  const clean = hex.replace(/\s+/g, "");
-  if (!clean || clean.length % 2) throw new Error("Invalid signature data.");
-  const out = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.slice(i * 2, i * 2 + 2), 16);
-  return out.buffer;
-}
-
-function concatRanges(bytes, ranges) {
-  const [a,b,c,d] = ranges;
-  if (a !== 0 || b < 0 || c < 0 || d < 0 || a + b > bytes.length || c + d > bytes.length) {
-    throw new Error("Invalid PDF ByteRange.");
+function busyState(v){busy.hidden=!v;chooseBtn.disabled=v}
+function setResult(type,mark,status){result.className="result "+type;result.querySelector(".mark").textContent=mark;result.querySelector(".status").textContent=status}
+function bytesFromHex(s){const h=s.replace(/\s/g,"");if(h.length%2)throw Error("Invalid PDF signature contents.");const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.slice(i*2,i*2+2),16);return a}
+function signedBytes(b,r){const[a,l,c,n]=r;if(a!==0||a+l> b.length||c+n>b.length)throw Error("Invalid PDF ByteRange.");const o=new Uint8Array(l+n);o.set(b.slice(a,a+l));o.set(b.slice(c,c+n),l);return o}
+function extract(bytes){
+  const s=new TextDecoder("latin1").decode(bytes), out=[];
+  const re=/\\/ByteRange\\s*\\[\\s*(\\d+)\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)\\s*\\]/g; let m;
+  while((m=re.exec(s))){
+    const ranges=m.slice(1).map(Number), pos=m.index, end=Math.min(s.length,pos+300000);
+    const tail=s.slice(pos,end);
+    const cm=tail.match(/\\/Contents\\s*<([0-9A-Fa-f\\s]+)>/);
+    if(cm)out.push({ranges,hex:cm[1]});
   }
-  const out = new Uint8Array(b + d);
-  out.set(bytes.slice(a, a + b), 0);
-  out.set(bytes.slice(c, c + d), b);
-  return out.buffer;
+  return out;
 }
-
-function extractSignatures(bytes) {
-  const text = new TextDecoder("latin1").decode(bytes);
-  const signatures = [];
-  const byteRangeRe = /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g;
-  let match;
-  while ((match = byteRangeRe.exec(text))) {
-    const ranges = match.slice(1).map(Number);
-    const searchEnd = Math.min(text.length, match.index + 2_000_000);
-    const tail = text.slice(match.index, searchEnd);
-    const contentsMatch = /\/Contents\s*<([0-9A-Fa-f\s]+)>/.exec(tail);
-    if (!contentsMatch) continue;
-    signatures.push({ ranges, hex: contentsMatch[1] });
-  }
-  return signatures;
+function certName(sd){
+  try{
+    const cert=(sd.certificates||[]).find(x=>x instanceof pkijs.Certificate)||(sd.certificates||[])[0];
+    if(!cert)return "Certificate found";
+    return cert.subject.typesAndValues.map(x=>x.value.valueBlock.value).filter(Boolean).join(", ")||"Certificate found";
+  }catch{return "Certificate found"}
 }
-
-function signerName(cms) {
-  try {
-    const certs = cms.certificates || [];
-    const cert = certs.find(c => c instanceof pkijs.Certificate) || certs[0];
-    return cert?.subject?.typesAndValues?.map(x => x.value?.valueBlock?.value).filter(Boolean).join(", ") || "Signer certificate found";
-  } catch { return "Signer certificate found"; }
-}
-
-function formatBytes(n) {
-  if (n < 1024) return n + " B";
-  if (n < 1024*1024) return (n/1024).toFixed(1) + " KB";
-  return (n/1024/1024).toFixed(2) + " MB";
-}
-
-async function validate(file) {
-  result.className = "result idle";
-  result.querySelector(".status").textContent = "Checking…";
-  details.innerHTML = "";
-  printBtn.hidden = true;
-  openBtn.hidden = true;
-  setBusy(true);
-  fileName.textContent = file.name;
-  lastReport = null;
-
-  if (currentUrl) URL.revokeObjectURL(currentUrl);
-  currentUrl = URL.createObjectURL(file);
-
-  try {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    if (new TextDecoder("ascii").decode(bytes.slice(0,5)) !== "%PDF-") throw new Error("This file is not a PDF.");
-
-    const signatures = extractSignatures(bytes);
-    if (!signatures.length) throw new Error("No PDF digital signature with ByteRange/Contents was found.");
-
-    const reports = [];
-    for (let i = 0; i < signatures.length; i++) {
-      const s = signatures[i];
-      const signedData = concatRanges(bytes, s.ranges);
-      const cmsRaw = hexToBytes(s.hex.replace(/0+$/,""));
-      const cmsContent = pkijs.ContentInfo.fromBER(cmsRaw);
-      if (cmsContent.contentType !== pkijs.ContentInfo.SIGNED_DATA) throw new Error("Signature " + (i+1) + " is not CMS SignedData.");
-
-      const cms = new pkijs.SignedData({ schema: cmsContent.content });
-      const verifyResult = await cms.verify({ signer: 0, data: signedData });
-      const digestOK = await verifySignedAttributesDigest(cms, signedData);
-      reports.push({
-        valid: Boolean(verifyResult) && digestOK,
-        signer: signerName(cms),
-        digestOK,
-        cryptoOK: Boolean(verifyResult),
-        size: formatBytes(bytes.length)
-      });
+async function validate(file){
+  setResult("idle","…","Checking digital signature…");details.innerHTML="";printBtn.hidden=openBtn.hidden=true;busyState(true);fileName.textContent=file.name;lastReport=null;
+  if(currentUrl)URL.revokeObjectURL(currentUrl);currentUrl=URL.createObjectURL(file);
+  try{
+    const b=new Uint8Array(await file.arrayBuffer());
+    if(new TextDecoder().decode(b.slice(0,5))!=="%PDF-")throw Error("Please upload a PDF file.");
+    const sigs=extract(b);if(!sigs.length)throw Error("No standard PDF digital signature was found.");
+    const reports=[];
+    for(const s of sigs){
+      const signed=signedBytes(b,s.ranges);
+      const cms=bytesFromHex(s.hex);
+      const asn=asn1js.fromBER(cms.buffer);if(asn.offset===-1)throw Error("Digital signature data could not be read.");
+      const ci=new pkijs.ContentInfo({schema:asn.result});
+      if(ci.contentType!==pkijs.ContentInfo.SIGNED_DATA)throw Error("Unsupported PDF signature format.");
+      const sd=new pkijs.SignedData({schema:ci.content});
+      const si=sd.signerInfos?.[0];if(!si)throw Error("Signer information is missing.");
+      let cryptoOK=false;
+      try{cryptoOK=await sd.verify({signer:0,data:signed});}catch(e){cryptoOK=false}
+      reports.push({valid:Boolean(cryptoOK),cryptoOK,signer:certName(sd)});
     }
-
-    const allValid = reports.every(x => x.valid);
-    lastReport = { allValid, reports, fileName: file.name, fileSize: formatBytes(file.size), checkedAt: new Date().toLocaleString() };
-    result.className = "result " + (allValid ? "valid" : "invalid");
-    result.querySelector(".mark").textContent = allValid ? "✓" : "!";
-    result.querySelector(".status").textContent = allValid ? "Digital Signature Valid" : "Signature Validation Failed";
-    details.innerHTML = reports.map((r,i) =>
-      '<div class="detail"><b>Signature '+(i+1)+'</b><span>'+escapeHtml(r.signer)+'</span><span>Cryptographic check: '+(r.cryptoOK ? '✓ Passed' : '✕ Failed')+'</span><span>Document hash/ByteRange: '+(r.digestOK ? '✓ Passed' : '✕ Failed')+'</span></div>'
-    ).join("");
-    printBtn.hidden = false;
-    openBtn.hidden = false;
-  } catch (err) {
-    result.className = "result invalid";
-    result.querySelector(".mark").textContent = "!";
-    result.querySelector(".status").textContent = err?.message || "Could not validate this PDF.";
-    details.innerHTML = '<div class="detail"><span>Try an Adobe/PAdES digitally signed PDF containing a standard PDF signature field.</span></div>';
-  } finally {
-    setBusy(false);
-  }
+    const all=reports.length>0&&reports.every(x=>x.valid);
+    lastReport={all,reports,fileName:file.name,fileSize:file.size,checkedAt:new Date().toLocaleString()};
+    setResult(all?"valid":"invalid",all?"✓":"!",all?"Digital Signature Valid":"Signature Validation Failed");
+    details.innerHTML=reports.map((r,i)=>'<div class="detail"><b>Signature '+(i+1)+'</b><span>Signer: '+esc(r.signer)+'</span><span>Cryptographic verification: '+(r.cryptoOK?"✓ Passed":"✕ Failed")+'</span><span>PDF signed bytes: '+(r.valid?"✓ Integrity verified":"✕ Integrity could not be verified")+'</span></div>').join("");
+    printBtn.hidden=openBtn.hidden=false;
+  }catch(e){
+    setResult("invalid","!","Validation could not be completed");
+    details.innerHTML='<div class="detail"><span>'+esc(e.message||"Unsupported or damaged signed PDF.")+'</span><span>This tool supports standard PDF CMS/PKCS#7 signatures.</span></div>';
+  }finally{busyState(false)}
 }
-
-async function verifySignedAttributesDigest(cms, data) {
-  const info = cms.signerInfos?.[0];
-  if (!info?.signedAttrs?.attributes?.length) return true;
-  const attr = info.signedAttrs.attributes.find(a => a.type === "1.2.840.113549.1.9.4");
-  if (!attr) return false;
-  const alg = info.digestAlgorithm?.algorithmId;
-  const names = {
-    "1.3.14.3.2.26":"SHA-1",
-    "2.16.840.1.101.3.4.2.1":"SHA-256",
-    "2.16.840.1.101.3.4.2.2":"SHA-384",
-    "2.16.840.1.101.3.4.2.3":"SHA-512"
-  };
-  if (!names[alg]) return false;
-  const digest = new Uint8Array(await crypto.subtle.digest(names[alg], data));
-  const expected = new Uint8Array(attr.values[0].valueBlock.valueHex);
-  if (digest.length !== expected.length) return false;
-  return digest.every((v,i) => v === expected[i]);
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-function printReport() {
-  if (!lastReport) return;
-  const w = window.open("", "_blank", "noopener");
-  if (!w) return;
-  const r = lastReport;
-  w.document.write('<!doctype html><html><head><title>PDF Signature Validation</title><style>body{font-family:Arial,sans-serif;padding:40px;color:#111}.box{border:2px solid #16a34a;padding:28px;border-radius:18px;max-width:720px;margin:auto}.mark{font-size:70px;color:#16a34a;font-weight:800}.title{font-size:28px;font-weight:800;color:#166534}.muted{color:#555}.item{padding:12px 0;border-bottom:1px solid #ddd}@media print{button{display:none}}</style></head><body><div class="box"><div class="mark">'+(r.allValid?'✓':'!')+'</div><div class="title">'+(r.allValid?'DIGITAL SIGNATURE VALID':'DIGITAL SIGNATURE VALIDATION FAILED')+'</div><p><b>File:</b> '+escapeHtml(r.fileName)+'</p><p><b>Size:</b> '+r.fileSize+'</p><p><b>Checked:</b> '+escapeHtml(r.checkedAt)+'</p>'+r.reports.map((x,i)=>'<div class="item"><b>Signature '+(i+1)+'</b><br>Signer: '+escapeHtml(x.signer)+'<br>Cryptographic verification: '+(x.cryptoOK?'PASSED':'FAILED')+'<br>Signed-data hash: '+(x.digestOK?'PASSED':'FAILED')+'</div>').join('')+'<p class="muted">This is a validation report. The original signed PDF is not modified.</p><button onclick="window.print()">Print / Save as PDF</button></div></body></html>');
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function printReport(){
+  if(!lastReport)return;const r=lastReport,w=window.open("","_blank");
+  if(!w)return;
+  const ok=r.all;
+  w.document.write('<!doctype html><html><head><title>PDF Signature Validation</title><style>body{font-family:Arial;padding:35px}.box{max-width:700px;margin:auto;border:2px solid '+(ok?"#16a34a":"#dc2626")+';padding:28px;border-radius:16px}.mark{font-size:72px;color:'+(ok?"#16a34a":"#dc2626")+'}.title{font-size:26px;font-weight:800}.item{padding:12px 0;border-bottom:1px solid #ddd}.muted{color:#666;font-size:12px}@media print{button{display:none}}</style></head><body><div class="box"><div class="mark">'+(ok?"✓":"!")+'</div><div class="title">'+(ok?"DIGITAL SIGNATURE VALID":"DIGITAL SIGNATURE VALIDATION FAILED")+'</div><p><b>File:</b> '+esc(r.fileName)+'</p><p><b>Checked:</b> '+esc(r.checkedAt)+'</p>'+r.reports.map((x,i)=>'<div class="item"><b>Signature '+(i+1)+'</b><br>Signer: '+esc(x.signer)+'<br>Cryptographic verification: '+(x.valid?"PASSED":"FAILED")+'</div>').join("")+'<p class="muted">Validation report only. Original signed PDF was not modified.</p><button onclick="window.print()">Print / Save as PDF</button></div></body></html>');
   w.document.close();
 }
-
