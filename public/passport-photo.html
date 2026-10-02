@@ -121,7 +121,7 @@ button:disabled {
   background: #fff;
 }
 
-/* AI Quality Enhancement Controls Box */
+/* AI Studio Quality Enhancement Controls Box */
 .enhance-box {
   background: #f0f7ff;
   border: 1px solid #b8daff;
@@ -148,7 +148,7 @@ button:disabled {
 }
 .enhance-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
 .slider-group {
@@ -210,33 +210,37 @@ button:disabled {
   <!-- AI Photo Quality Enhancement Box -->
   <div id="enhanceBox" class="enhance-box">
     <div class="enhance-header">
-      <span class="enhance-title">✨ AI Photo Quality Enhancement (क्वालिटी व चेहरे की स्पष्टता)</span>
+      <span class="enhance-title">✨ AI Studio Quality & Headroom (क्वालिटी व सिर के ऊपर जगह)</span>
       <div style="display:flex; gap:6px;">
-        <button id="autoBtn" class="btn-mini btn-auto">⚡ Auto AI Enhance</button>
+        <button id="autoBtn" class="btn-mini btn-auto">⚡ Auto AI Studio</button>
         <button id="resetBtn" class="btn-mini btn-reset">↺ Reset</button>
       </div>
     </div>
     <div class="enhance-grid">
       <div class="slider-group">
-        <div class="slider-label"><span>Brightness (चमक):</span><span id="bVal">+6</span></div>
-        <input id="bright" class="slider-input" type="range" min="-30" max="30" value="6">
+        <div class="slider-label"><span>Headroom (सिर के ऊपर जगह):</span><span id="hrVal">+15%</span></div>
+        <input id="headroom" class="slider-input" type="range" min="-10" max="45" value="15">
       </div>
       <div class="slider-group">
-        <div class="slider-label"><span>Contrast (कंट्रास्ट):</span><span id="cVal">+8</span></div>
-        <input id="contrast" class="slider-input" type="range" min="-30" max="30" value="8">
+        <div class="slider-label"><span>Brightness (चमक):</span><span id="bVal">+5</span></div>
+        <input id="bright" class="slider-input" type="range" min="-30" max="30" value="5">
       </div>
       <div class="slider-group">
-        <div class="slider-label"><span>Sharpness (तीखापन / आंखें-बाल स्पष्टता):</span><span id="sVal">45%</span></div>
-        <input id="sharp" class="slider-input" type="range" min="0" max="100" value="45">
+        <div class="slider-label"><span>Contrast (कंट्रास्ट):</span><span id="cVal">+6</span></div>
+        <input id="contrast" class="slider-input" type="range" min="-30" max="30" value="6">
       </div>
       <div class="slider-group">
-        <div class="slider-label"><span>Skin Smooth (फेस स्मूथिंग):</span><span id="smVal">30%</span></div>
-        <input id="smooth" class="slider-input" type="range" min="0" max="100" value="30">
+        <div class="slider-label"><span>Clarity / Sharpen (चेहरे की स्पष्टता):</span><span id="sVal">35%</span></div>
+        <input id="sharp" class="slider-input" type="range" min="0" max="100" value="35">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Skin Smooth (फेस स्मूथिंग):</span><span id="smVal">25%</span></div>
+        <input id="smooth" class="slider-input" type="range" min="0" max="100" value="25">
       </div>
     </div>
   </div>
 
-  <p class="note">AI person segmentation • pure white background • AI face detection • natural head/shoulder framing • AI quality enhancement (clarity & smoothing) • A4 300 DPI • 1.3×1.4 inch photos • 6 copies.</p>
+  <p class="note">AI person segmentation • pure 100% white background • AI face detection • natural headroom above head • high-DPI studio quality • A4 300 DPI • 1.3×1.4 inch photos • 6 copies.</p>
 
   <div class="preview"><div id="a4" class="a4"></div></div>
 </div>
@@ -251,10 +255,12 @@ const pngBtn = document.getElementById('png');
 const singleBtn = document.getElementById('single');
 const enhanceBox = document.getElementById('enhanceBox');
 
+const headroomInput = document.getElementById('headroom');
 const brightInput = document.getElementById('bright');
 const contrastInput = document.getElementById('contrast');
 const sharpInput = document.getElementById('sharp');
 const smoothInput = document.getElementById('smooth');
+const hrVal = document.getElementById('hrVal');
 const bVal = document.getElementById('bVal');
 const cVal = document.getElementById('cVal');
 const sVal = document.getElementById('sVal');
@@ -262,10 +268,18 @@ const smVal = document.getElementById('smVal');
 const autoBtn = document.getElementById('autoBtn');
 const resetBtn = document.getElementById('resetBtn');
 
-const W = 2480, H = 3508, PW = 390, PH = 420, G = 20, M = 20;
+// 2x Supersampled high studio resolution for crisp zero-pixelation rendering
+const W = 2480, H = 3508;
+const PW = 780, PH = 840; // High-resolution internal canvas (2x supersampled)
+const SLOT_W = 390, SLOT_H = 420; // 300 DPI slot size on A4 sheet
+const G = 20, M = 20;
+
 let photoData = '';
 let sheetBlob = null;
-let rawCroppedCanvas = null; // Unenhanced base cutout canvas
+let currentFile = null;
+let currentOrigImg = null;
+let currentFace = null;
+let currentSeg = null;
 let uploadedFileName = 'passport-photo';
 let faceDetectorPromise = null;
 let segmenterPromise = null;
@@ -331,7 +345,7 @@ async function detectFace(img) {
 }
 
 // -----------------------------------------------------------------------------
-// AI Selfie Segmentation (MediaPipe)
+// AI Selfie Segmentation with 100% Pure White Studio Cutoff
 // -----------------------------------------------------------------------------
 async function getSegmenter() {
   if (segmenterPromise) return segmenterPromise;
@@ -351,7 +365,7 @@ async function getSegmenter() {
   return segmenterPromise;
 }
 
-// Anti-aliased smoothstep edge feathering for hair and shoulders
+// Crisp pure white cutoff with smooth anti-aliased edge (no background bleeding)
 function makeSegmentationCanvas(mask) {
   const mw = mask.width, mh = mask.height, vals = mask.values;
   const mc = document.createElement('canvas');
@@ -365,9 +379,21 @@ function makeSegmentationCanvas(mask) {
     let v = vals[i];
     if (!Number.isFinite(v)) v = 0;
     v = Math.max(0, Math.min(1, v));
-    // Cubic smoothstep for natural hair transparency and soft anti-aliased edge
-    const t = Math.max(0, Math.min(1, (v - 0.16) / 0.65));
-    const a = Math.round(t * t * (3 - 2 * t) * 255);
+
+    // Studio pure white cutoff:
+    // Strictly 0 below 0.34 (cuts off all room shadows, wall tint, background clutter)
+    // Solid 255 above 0.66 (solid person foreground)
+    // Smoothstep anti-aliasing only in the narrow 0.34..0.66 boundary
+    let a = 0;
+    if (v <= 0.34) {
+      a = 0;
+    } else if (v >= 0.66) {
+      a = 255;
+    } else {
+      const t = (v - 0.34) / 0.32;
+      a = Math.round(t * t * (3 - 2 * t) * 255);
+    }
+
     p[j] = 255;
     p[j + 1] = 255;
     p[j + 2] = 255;
@@ -380,7 +406,7 @@ function makeSegmentationCanvas(mask) {
 async function aiCut(file, orig) {
   statusEl.textContent = '🤖 AI person segmentation loading…';
   const seg = await getSegmenter();
-  statusEl.textContent = '🤖 AI removing background…';
+  statusEl.textContent = '🤖 AI removing background to pure white…';
   const maxSide = 1024, scale = Math.min(1, maxSide / Math.max(orig.naturalWidth, orig.naturalHeight));
   const sc = document.createElement('canvas');
   sc.width = Math.max(1, Math.round(orig.naturalWidth * scale));
@@ -408,9 +434,9 @@ async function aiCut(file, orig) {
 }
 
 // -----------------------------------------------------------------------------
-// AI Quality Enhancement Filters (Sharpness, Skin Smooth, Brightness & Contrast)
+// Studio Quality Enhancement (Thresholded Non-Pixelating Sharpening & Denoising)
 // -----------------------------------------------------------------------------
-function applyQualityEnhance(srcCanvas, bright, contrast, sharp, smooth) {
+function applyStudioEnhance(srcCanvas, bright, contrast, sharp, smooth) {
   const outCanvas = document.createElement('canvas');
   outCanvas.width = PW;
   outCanvas.height = PH;
@@ -420,27 +446,37 @@ function applyQualityEnhance(srcCanvas, bright, contrast, sharp, smooth) {
   const imgData = ctx.getImageData(0, 0, PW, PH);
   const p = imgData.data;
 
-  const bOffset = bright * 1.5;
-  const cFactor = (contrast + 100) / 100;
+  // 1. Photographic S-curve Exposure & Contrast (Prevents harsh clipping / pixel tearing)
+  const expFactor = 1 + (bright / 100) * 0.70;
+  const cFactor = 1 + (contrast / 100) * 0.65;
 
-  // 1. Exposure, Contrast & Warmth adjustment
   for (let i = 0; i < p.length; i += 4) {
     let r = p[i], g = p[i + 1], b = p[i + 2];
-    // Do not alter pure white background pixels
+    // Keep 100% pure white background completely untouched
     if (r === 255 && g === 255 && b === 255) continue;
 
-    r = Math.min(255, Math.max(0, (r - 128) * cFactor + 128 + bOffset));
-    g = Math.min(255, Math.max(0, (g - 128) * cFactor + 128 + bOffset));
-    b = Math.min(255, Math.max(0, (b - 128) * cFactor + 128 + bOffset));
+    // Smooth exposure adjustment
+    if (expFactor !== 1) {
+      r = Math.min(255, Math.pow(r / 255, 1 / expFactor) * 255);
+      g = Math.min(255, Math.pow(g / 255, 1 / expFactor) * 255);
+      b = Math.min(255, Math.pow(b / 255, 1 / expFactor) * 255);
+    }
+
+    // Smooth contrast adjustment around neutral center 128
+    if (cFactor !== 1) {
+      r = Math.min(255, Math.max(0, (r - 128) * cFactor + 128));
+      g = Math.min(255, Math.max(0, (g - 128) * cFactor + 128));
+      b = Math.min(255, Math.max(0, (b - 128) * cFactor + 128));
+    }
 
     p[i] = r;
     p[i + 1] = g;
     p[i + 2] = b;
   }
 
-  // 2. Edge-aware skin smoothing (cleans camera noise & blemishes while keeping eyes/hair sharp)
+  // 2. Complexion Skin Smoothing (Denoising while preserving facial feature edges)
   if (smooth > 0) {
-    const factor = (smooth / 100) * 0.7;
+    const factor = (smooth / 100) * 0.65;
     const copy = new Uint8ClampedArray(p);
     for (let y = 1; y < PH - 1; y++) {
       for (let x = 1; x < PW - 1; x++) {
@@ -455,7 +491,7 @@ function applyQualityEnhance(srcCanvas, bright, contrast, sharp, smooth) {
             for (let dx = -1; dx <= 1; dx++) {
               const nIdx = ((y + dy) * PW + (x + dx)) * 4;
               const nr = copy[nIdx], ng = copy[nIdx + 1], nb = copy[nIdx + 2];
-              if (Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb) < 80) {
+              if (Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb) < 75) {
                 rSum += nr; gSum += ng; bSum += nb; count++;
               }
             }
@@ -470,10 +506,15 @@ function applyQualityEnhance(srcCanvas, bright, contrast, sharp, smooth) {
     }
   }
 
-  // 3. Unsharp mask sharpening (makes eyes, eyebrows, hair, and lips crisp for printing)
+  // 3. Thresholded Unsharp Mask Sharpening:
+  // Sharpens eyes, eyelashes, pupils, eyebrows, hair strands & lips
+  // CRITICAL: Ignores low-level skin noise (< 5) and caps max overshoot (55) so PIXELS NEVER TEAR!
   if (sharp > 0) {
-    const k = (sharp / 100) * 0.72;
+    const k = (sharp / 100) * 0.55;
     const copy = new Uint8ClampedArray(p);
+    const minThreshold = 4;
+    const maxThreshold = 55;
+
     for (let y = 1; y < PH - 1; y++) {
       for (let x = 1; x < PW - 1; x++) {
         const idx = (y * PW + x) * 4;
@@ -486,8 +527,13 @@ function applyQualityEnhance(srcCanvas, bright, contrast, sharp, smooth) {
           const down = copy[((y + 1) * PW + x) * 4 + c];
           const left = copy[(y * PW + (x - 1)) * 4 + c];
           const right = copy[(y * PW + (x + 1)) * 4 + c];
-          const val = center + k * (4 * center - up - down - left - right);
-          p[idx + c] = Math.min(255, Math.max(0, val));
+          const laplacian = 4 * center - up - down - left - right;
+          const absLap = Math.abs(laplacian);
+
+          if (absLap >= minThreshold) {
+            const delta = Math.sign(laplacian) * Math.min(maxThreshold, absLap) * k;
+            p[idx + c] = Math.min(255, Math.max(0, center + delta));
+          }
         }
       }
     }
@@ -498,98 +544,149 @@ function applyQualityEnhance(srcCanvas, bright, contrast, sharp, smooth) {
 }
 
 // -----------------------------------------------------------------------------
-// Core Passport Photo Maker Pipeline
+// Core Passport Photo Maker Pipeline with Headroom & Pure White Background
 // -----------------------------------------------------------------------------
+function buildPassportPhotoCanvas(headroomPct, bright, contrast, sharp, smooth) {
+  if (!currentOrigImg || !currentSeg) return null;
+
+  const orig = currentOrigImg;
+  const face = currentFace;
+  const seg = currentSeg;
+
+  const sw = orig.naturalWidth, sh = orig.naturalHeight;
+  const ratio = PW / PH;
+  let cw = sw, ch = sw / ratio, sx = (sw - cw) / 2, sy = (sh - ch) * 0.12;
+  if (ch > sh) { ch = sh; cw = ch * ratio; sy = 0; }
+
+  if (face) {
+    // Generous studio headroom: face occupies approx 33-35% of total height
+    const targetFaceRatio = 0.34;
+    ch = Math.min(sh, Math.max(face.height / targetFaceRatio, face.height * 2.95));
+    cw = ch * ratio;
+    if (cw > sw) { cw = sw; ch = cw / ratio; }
+
+    const fx = face.x + face.width / 2;
+    sx = fx - cw / 2;
+
+    // "SIR KE UPER THODI JAGAH RAKHO":
+    // Starts crop well above the head (0.95 + headroom adjustment)
+    const headroomFactor = 0.95 + (headroomPct / 100) * 0.65;
+    sy = face.y - face.height * headroomFactor;
+  }
+
+  sx = Math.max(0, Math.min(sw - cw, sx));
+  sy = Math.max(0, Math.min(sh - ch, sy));
+
+  // High-resolution canvas for crystal-clear output
+  const out = document.createElement('canvas');
+  out.width = PW;
+  out.height = PH;
+  const o = out.getContext('2d');
+  o.imageSmoothingEnabled = true;
+  o.imageSmoothingQuality = 'high';
+
+  // 1. Fill 100% Solid Pure Studio White Background
+  o.fillStyle = '#ffffff';
+  o.fillRect(0, 0, PW, PH);
+
+  // 2. High-Quality Downsampled Foreground Person
+  const fg = document.createElement('canvas');
+  fg.width = PW;
+  fg.height = PH;
+  const f = fg.getContext('2d');
+  f.imageSmoothingEnabled = true;
+  f.imageSmoothingQuality = 'high';
+  f.drawImage(orig, sx, sy, cw, ch, 0, 0, PW, PH);
+
+  // 3. Crop Mask
+  const cropMask = document.createElement('canvas');
+  cropMask.width = PW;
+  cropMask.height = PH;
+  const cm = cropMask.getContext('2d');
+  cm.imageSmoothingEnabled = true;
+  cm.imageSmoothingQuality = 'high';
+  const mx = sx * seg.scale, my = sy * seg.scale, mw = cw * seg.scale, mh = ch * seg.scale;
+  cm.drawImage(seg.maskCanvas, mx, my, mw, mh, 0, 0, PW, PH);
+
+  f.globalCompositeOperation = 'destination-in';
+  f.drawImage(cropMask, 0, 0);
+  f.globalCompositeOperation = 'source-over';
+  o.drawImage(fg, 0, 0);
+
+  // 4. Guaranteed Pure White Decontamination Pass:
+  // Erases any leftover wall shadow or background tint, guaranteeing pure #ffffff outside person
+  const outImgData = o.getImageData(0, 0, PW, PH);
+  const op = outImgData.data;
+  const maskImgData = cm.getImageData(0, 0, PW, PH).data;
+
+  for (let i = 0; i < op.length; i += 4) {
+    const maskA = maskImgData[i + 3];
+    if (maskA === 0) {
+      op[i] = 255;
+      op[i + 1] = 255;
+      op[i + 2] = 255;
+      op[i + 3] = 255;
+    } else if (maskA < 210) {
+      // Smooth edge decontamination towards pure white
+      const blendToWhite = (210 - maskA) / 210;
+      op[i] = Math.round(op[i] * (1 - blendToWhite) + 255 * blendToWhite);
+      op[i + 1] = Math.round(op[i + 1] * (1 - blendToWhite) + 255 * blendToWhite);
+      op[i + 2] = Math.round(op[i + 2] * (1 - blendToWhite) + 255 * blendToWhite);
+      op[i + 3] = 255;
+    }
+  }
+  o.putImageData(outImgData, 0, 0);
+
+  // 5. Apply Studio Quality Enhancement
+  return applyStudioEnhance(out, bright, contrast, sharp, smooth);
+}
+
 async function makePhoto(file) {
   const original = URL.createObjectURL(file);
   try {
     const orig = await loadImage(original);
-    statusEl.textContent = '🤖 AI detecting face…';
-    const face = await detectFace(orig);
-    const seg = await aiCut(file, orig);
+    currentOrigImg = orig;
 
-    const sw = orig.naturalWidth, sh = orig.naturalHeight, ratio = PW / PH;
-    let cw = sw, ch = sw / ratio, sx = (sw - cw) / 2, sy = (sh - ch) * 0.12;
-    if (ch > sh) { ch = sh; cw = ch * ratio; sy = 0; }
+    statusEl.textContent = '🤖 AI detecting face & calculating headroom…';
+    currentFace = await detectFace(orig);
 
-    if (face) {
-      statusEl.textContent = '👤 AI face found — balanced headroom, head and shoulders…';
-      // Wider framing: keep complete hair/head and more shoulder area.
-      // Face is an anchor occupying roughly 36% of the photo height.
-      const targetFaceRatio = 0.36;
-      ch = Math.min(sh, Math.max(face.height / targetFaceRatio, face.height * 2.78));
-      cw = ch * ratio;
-      if (cw > sw) { cw = sw; ch = cw / ratio; }
-      const fx = face.x + face.width / 2;
-      sx = fx - cw / 2;
-      // Extra top margin prevents top of hair/head from being clipped
-      sy = face.y - face.height * 0.65;
-    }
+    statusEl.textContent = '🤖 AI removing background to pure 100% white…';
+    currentSeg = await aiCut(file, orig);
 
-    sx = Math.max(0, Math.min(sw - cw, sx));
-    sy = Math.max(0, Math.min(sh - ch, sy));
-
-    const out = document.createElement('canvas');
-    out.width = PW;
-    out.height = PH;
-    const o = out.getContext('2d');
-    o.imageSmoothingEnabled = true;
-    o.imageSmoothingQuality = 'high';
-    o.fillStyle = '#fff';
-    o.fillRect(0, 0, PW, PH);
-
-    const fg = document.createElement('canvas');
-    fg.width = PW;
-    fg.height = PH;
-    const f = fg.getContext('2d');
-    f.imageSmoothingEnabled = true;
-    f.imageSmoothingQuality = 'high';
-    f.drawImage(orig, sx, sy, cw, ch, 0, 0, PW, PH);
-
-    const cropMask = document.createElement('canvas');
-    cropMask.width = PW;
-    cropMask.height = PH;
-    const cm = cropMask.getContext('2d');
-    const mx = sx * seg.scale, my = sy * seg.scale, mw = cw * seg.scale, mh = ch * seg.scale;
-    cm.drawImage(seg.maskCanvas, mx, my, mw, mh, 0, 0, PW, PH);
-
-    f.globalCompositeOperation = 'destination-in';
-    f.drawImage(cropMask, 0, 0);
-    f.globalCompositeOperation = 'source-over';
-    o.drawImage(fg, 0, 0);
-
-    // Cache unenhanced raw cutout so slider adjustments are instant!
-    rawCroppedCanvas = out;
-
-    // Apply default AI quality enhancement
-    const enhanced = applyQualityEnhance(
-      rawCroppedCanvas,
+    statusEl.textContent = '✨ Applying studio enhancements…';
+    const enhancedCanvas = buildPassportPhotoCanvas(
+      parseInt(headroomInput.value, 10),
       parseInt(brightInput.value, 10),
       parseInt(contrastInput.value, 10),
       parseInt(sharpInput.value, 10),
       parseInt(smoothInput.value, 10)
     );
 
-    return enhanced.toDataURL('image/jpeg', 0.97);
+    return enhancedCanvas.toDataURL('image/jpeg', 0.98);
   } finally {
     URL.revokeObjectURL(original);
   }
 }
 
+// Draw 6 high-resolution passport photos onto the A4 300 DPI sheet
 function buildSheet() {
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const x = c.getContext('2d');
+  x.imageSmoothingEnabled = true;
+  x.imageSmoothingQuality = 'high';
   x.fillStyle = '#fff';
   x.fillRect(0, 0, W, H);
+
   return loadImage(photoData).then(im => {
     for (let i = 0; i < 6; i++) {
-      const xx = M + i * (PW + G);
-      x.drawImage(im, xx, M, PW, PH);
+      const xx = M + i * (SLOT_W + G);
+      // Downsample from high-res 780x840 into exact 390x420 slot cleanly
+      x.drawImage(im, xx, M, SLOT_W, SLOT_H);
       x.strokeStyle = '#111';
       x.lineWidth = 4;
-      x.strokeRect(xx + 2, M + 2, PW - 4, PH - 4);
+      x.strokeRect(xx + 2, M + 2, SLOT_W - 4, SLOT_H - 4);
     }
     return new Promise(r => c.toBlob(r, 'image/png'));
   });
@@ -601,59 +698,67 @@ function preview() {
     const im = document.createElement('img');
     im.className = 'p';
     im.src = photoData;
-    im.style.left = ((M + i * (PW + G)) * 793 / W) + 'px';
+    im.style.left = ((M + i * (SLOT_W + G)) * 793 / W) + 'px';
     im.style.top = (M * 1123 / H) + 'px';
     a4.appendChild(im);
   }
 }
 
 // -----------------------------------------------------------------------------
-// Slider Update Handler (Live update without re-running AI segmentation)
+// Interactive Sliders Update Handler (Live Instant Re-render)
 // -----------------------------------------------------------------------------
 let updateTimer = null;
 function handleSliderChange() {
-  if (!rawCroppedCanvas) return;
+  if (!currentOrigImg || !currentSeg) return;
+
+  const hr = parseInt(headroomInput.value, 10);
   const b = parseInt(brightInput.value, 10);
   const c = parseInt(contrastInput.value, 10);
   const s = parseInt(sharpInput.value, 10);
   const sm = parseInt(smoothInput.value, 10);
 
+  hrVal.textContent = (hr > 0 ? '+' : '') + hr + '%';
   bVal.textContent = (b > 0 ? '+' : '') + b;
   cVal.textContent = (c > 0 ? '+' : '') + c;
   sVal.textContent = s + '%';
   smVal.textContent = sm + '%';
 
-  const enhanced = applyQualityEnhance(rawCroppedCanvas, b, c, s, sm);
-  photoData = enhanced.toDataURL('image/jpeg', 0.97);
-  preview();
+  const enhancedCanvas = buildPassportPhotoCanvas(hr, b, c, s, sm);
+  if (enhancedCanvas) {
+    photoData = enhancedCanvas.toDataURL('image/jpeg', 0.98);
+    preview();
 
-  clearTimeout(updateTimer);
-  updateTimer = setTimeout(async () => {
-    sheetBlob = await buildSheet();
-  }, 250);
+    clearTimeout(updateTimer);
+    updateTimer = setTimeout(async () => {
+      sheetBlob = await buildSheet();
+    }, 250);
+  }
 }
 
+headroomInput.oninput = handleSliderChange;
 brightInput.oninput = handleSliderChange;
 contrastInput.oninput = handleSliderChange;
 sharpInput.oninput = handleSliderChange;
 smoothInput.oninput = handleSliderChange;
 
 autoBtn.onclick = () => {
-  brightInput.value = 6;
-  contrastInput.value = 8;
-  sharpInput.value = 45;
-  smoothInput.value = 30;
+  headroomInput.value = 15;
+  brightInput.value = 5;
+  contrastInput.value = 6;
+  sharpInput.value = 35;
+  smoothInput.value = 25;
   handleSliderChange();
-  statusEl.textContent = '✨ Auto AI Quality Enhancement applied!';
+  statusEl.textContent = '✨ Auto AI Studio Enhancements & Headroom applied!';
 };
 
 resetBtn.onclick = () => {
+  headroomInput.value = 0;
   brightInput.value = 0;
   contrastInput.value = 0;
   sharpInput.value = 0;
   smoothInput.value = 0;
   handleSliderChange();
-  statusEl.textContent = '↺ Original photo quality restored.';
+  statusEl.textContent = '↺ Original photo settings restored.';
 };
 
 // -----------------------------------------------------------------------------
@@ -662,11 +767,11 @@ resetBtn.onclick = () => {
 async function handleFileChange() {
   const f = fileInput.files[0];
   if (!f) return;
+  currentFile = f;
   uploadedFileName = f.name ? f.name.replace(/\.[^.]+$/, '') : 'passport-photo';
   pdfBtn.disabled = pngBtn.disabled = singleBtn.disabled = true;
   sheetBlob = null;
   photoData = '';
-  rawCroppedCanvas = null;
   a4.innerHTML = '';
   enhanceBox.style.display = 'none';
 
@@ -674,10 +779,10 @@ async function handleFileChange() {
     photoData = await makePhoto(f);
     preview();
     enhanceBox.style.display = 'block';
-    statusEl.textContent = '📄 Creating exact A4 sheet…';
+    statusEl.textContent = '📄 Creating exact A4 300 DPI sheet…';
     sheetBlob = await buildSheet();
     pdfBtn.disabled = pngBtn.disabled = singleBtn.disabled = false;
-    statusEl.textContent = '✓ Complete — AI background removed, pure white background applied, balanced head/shoulder framing & photo quality enhanced.';
+    statusEl.textContent = '✓ Complete — Pure white studio background, headroom preserved & high-DPI quality enhanced!';
   } catch (e) {
     console.error(e);
     statusEl.textContent = '❌ AI processing failed: ' + (e?.message || e);
@@ -702,7 +807,7 @@ pdfBtn.onclick = () => {
   if (!w) return;
   let q = '';
   for (let i = 0; i < 6; i++) {
-    const xx = (M + i * (PW + G)) * 210 / W, yy = M * 297 / H;
+    const xx = (M + i * (SLOT_W + G)) * 210 / W, yy = M * 297 / H;
     q += `<img src="${photoData}" style="position:absolute;left:${xx}mm;top:${yy}mm;width:33.02mm;height:35.56mm;object-fit:cover;border:.35mm solid #111">`;
   }
   w.document.write(`<style>@page{size:A4;margin:0}body{margin:0}</style>${q}`);
@@ -714,7 +819,7 @@ singleBtn.onclick = () => {
   if (!photoData) return;
   const a = document.createElement('a');
   a.href = photoData;
-  a.download = `${uploadedFileName}_passport_single.jpg`;
+  a.download = `${uploadedFileName}_passport_studio.jpg`;
   a.click();
 };
 </script>
