@@ -958,42 +958,64 @@ function drawAdobeFoxitStamp(page, opts) {
   if (style === "adobe-clean" || style === "adobe-overlay") {
     const extraPad = coverPadding || 0;
 
+    let textX = x;
+
+    // Measure exact width of the signature text data
+    let maxTextWidth = 120;
+    try {
+      const w1 = fontBold.widthOfTextAtSize("Signature valid", 11);
+      const w2 = font.widthOfTextAtSize(`Digitally signed by ${signerLine1}`, 9);
+      const w2b = hasLine2 ? font.widthOfTextAtSize(signerLine2, 9) : 0;
+      const w3 = hasDesignation ? font.widthOfTextAtSize(`Designation : ${designation}`, 8.5) : 0;
+      const w4 = font.widthOfTextAtSize(`Date: ${dateStr}`, 8.5);
+      const w5 = font.widthOfTextAtSize(`Reason: ${reason}`, 8.5);
+      maxTextWidth = Math.max(w1, w2, w2b, w3, w4, w5, 120);
+    } catch (e) {
+      maxTextWidth = 140;
+    }
+
     // 1. FIRST: Solid 100% white cover patch to ERASE the old '?' mark and 'Validity unknown'
     if (coverOld || style === "adobe-clean") {
+      const coverW = Math.max(blockW, maxTextWidth + 18);
       page.drawRectangle({
-        x: x - 18 - extraPad,
+        x: x - 16 - extraPad,
         y: y - 8 - extraPad,
-        width: blockW + 28 + extraPad * 2,
+        width: coverW + 28 + extraPad * 2,
         height: blockH + 16 + extraPad * 2,
         color: rgb(1, 1, 1), // solid opaque white
         opacity: 1.0
       });
     }
 
-    // 2. SECOND: DRAW THE "RIGHT" (GREEN CHECKMARK) IN THE BACKGROUND!
-    // ("right background m rahe" -> Checkmark drawn BEFORE text so it stays behind!)
-    let tickX;
-    let tickY = y + (blockH - tickH) / 2;
-    let textX = x;
+    // 2. SECOND: DRAW THE "RIGHT" (GREEN CHECKMARK) IN THE BACKGROUND & DEAD CENTER (BEECH MEIN)!
+    // Horizontal center of signature text data:
+    const textCenterX = textX + maxTextWidth / 2;
+
+    // Vertical center of signature text data:
+    const topTextY = y + blockH - 12 + 8.5; // top of "Signature valid"
+    let bottomTextY = y + blockH - 12 - 13 - 11 - 11 - 11 - 2.5; // bottom of "Reason" line
+    if (hasLine2) bottomTextY -= 11;
+    if (hasDesignation) bottomTextY -= 11;
+    const textCenterY = (topTextY + bottomTextY) / 2;
+
+    // Exact pdf-lib SVG coordinate mapping:
+    // FOXIT_TICK_PATH has sx in [10, 98] (center 54) and sy in [12, 94] (center 53).
+    // pdf-lib drawSvgPath uses transformation matrix [scale, 0, 0, -scale].
+    // Rendered center X = drawX + 54 * scale  =>  drawX = targetCenterX - 54 * scale
+    // Rendered center Y = drawY - 53 * scale  =>  drawY = targetCenterY + 53 * scale
+    let drawX = textCenterX - 54 * scale;
+    let drawY = textCenterY + 53 * scale;
 
     if (tickAlign === "left") {
-      // Placed on left where the '?' icon was, with text beside it
-      tickX = x;
-      textX = x + tickW + 6;
+      drawX = (textX + 20) - 54 * scale;
     } else if (tickAlign === "right") {
-      // Placed across right side in background
-      tickX = x + blockW * 0.52;
-      textX = x;
-    } else {
-      // Default: Center Background (Foxit / Adobe Standard Watermark behind text)
-      tickX = x + (blockW - tickW) / 2 + 10;
-      textX = x;
+      drawX = (textX + maxTextWidth - 20) - 54 * scale;
     }
 
     // Black 3D drop shadow (underneath green body)
     page.drawSvgPath(FOXIT_TICK_PATH, {
-      x: tickX + 2.2,
-      y: tickY - 2.2,
+      x: drawX + 2.0,
+      y: drawY - 2.0,
       color: rgb(0, 0, 0),
       borderColor: rgb(0, 0, 0),
       borderWidth: 1.5,
@@ -1002,8 +1024,8 @@ function drawAdobeFoxitStamp(page, opts) {
 
     // Vibrant Green Tick Body with solid black edge
     page.drawSvgPath(FOXIT_TICK_PATH, {
-      x: tickX,
-      y: tickY,
+      x: drawX,
+      y: drawY,
       color: rgb(0, 0.65, 0.22), // Bright Foxit/Adobe green (#00a651)
       borderColor: rgb(0, 0, 0),
       borderWidth: 1.8,
@@ -1087,13 +1109,15 @@ function drawAdobeFoxitStamp(page, opts) {
     const scale = tickScale || 0.55;
     const tickW = 88 * scale;
     const tickH = 82 * scale;
-    const tickX = x;
-    const tickY = y + (blockH - tickH) / 2;
+    const centerX = x + tickW / 2;
+    const centerY = y + blockH / 2;
+    const drawX = centerX - 54 * scale;
+    const drawY = centerY + 53 * scale;
 
     if (coverOld) {
       page.drawRectangle({
-        x: tickX - 8,
-        y: tickY - 8,
+        x: centerX - tickW / 2 - 8,
+        y: centerY - tickH / 2 - 8,
         width: tickW + 16,
         height: tickH + 16,
         color: rgb(1, 1, 1),
@@ -1103,8 +1127,8 @@ function drawAdobeFoxitStamp(page, opts) {
 
     // Black drop shadow
     page.drawSvgPath(FOXIT_TICK_PATH, {
-      x: tickX + 2.2,
-      y: tickY - 2.2,
+      x: drawX + 2.0,
+      y: drawY - 2.0,
       color: rgb(0, 0, 0),
       borderColor: rgb(0, 0, 0),
       borderWidth: 1.5,
@@ -1113,8 +1137,8 @@ function drawAdobeFoxitStamp(page, opts) {
 
     // Green tick
     page.drawSvgPath(FOXIT_TICK_PATH, {
-      x: tickX,
-      y: tickY,
+      x: drawX,
+      y: drawY,
       color: rgb(0, 0.65, 0.22),
       borderColor: rgb(0, 0, 0),
       borderWidth: 1.8,
