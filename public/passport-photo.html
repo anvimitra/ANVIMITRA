@@ -1,912 +1,722 @@
 <!doctype html>
-<html lang="hi">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Passport Size Photo Studio & Print Maker • ANVI E-Mitra</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Passport Photo Maker | ANVI E-Mitra & CSC Centre</title>
 <style>
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: #070b16;
-  color: #f1f5f9;
-  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background: #eef3f8;
+  color: #172033;
 }
-.bg {
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  background:
-    radial-gradient(circle at 10% 20%, #4f46e530 0, transparent 40%),
-    radial-gradient(circle at 90% 15%, #06b6d430 0, transparent 35%),
-    radial-gradient(circle at 50% 85%, #ec489920 0, transparent 40%),
-    #070b16;
+.box {
+  max-width: 1050px;
+  margin: 20px auto;
+  background: #fff;
+  padding: 22px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px #0001;
 }
-.wrap {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 24px 20px 60px;
-}
-.top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 800;
-  font-size: 19px;
-  letter-spacing: .3px;
-}
-.brand-badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #8b5cf6, #06b6d4);
-  display: grid;
-  place-items: center;
-  font-size: 19px;
-  box-shadow: 0 8px 24px #8b5cf644;
-}
-.back-link {
-  color: #c4b5fd;
+.box a {
+  color: #1760a8;
   text-decoration: none;
+  font-weight: bold;
   font-size: 14px;
-  font-weight: 600;
-  padding: 8px 16px;
-  border: 1px solid #ffffff1a;
-  border-radius: 10px;
-  background: #ffffff0a;
-  transition: .2s ease;
 }
-.back-link:hover {
-  background: #ffffff18;
-  border-color: #8b5cf666;
+.box h1 {
+  margin: 12px 0 6px;
+  font-size: 26px;
+  color: #0f172a;
 }
-.hero {
+.box p {
+  margin: 0 0 16px;
+  color: #475569;
+  font-size: 14px;
+}
+.up {
+  display: block;
+  border: 2px dashed #1760a8;
+  border-radius: 12px;
+  padding: 30px;
   text-align: center;
-  margin-bottom: 28px;
-}
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: #8b5cf618;
-  border: 1px solid #8b5cf644;
-  color: #c4b5fd;
-  font-size: 12px;
-  font-weight: 700;
-  margin-bottom: 12px;
-}
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 12px #22c55e;
-}
-.hero h1 {
-  font-size: clamp(26px, 4.5vw, 42px);
-  margin: 0 0 10px;
-  font-weight: 800;
-  background: linear-gradient(90deg, #fff, #c4b5fd 50%, #67e8f9);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.hero p {
-  margin: 0 auto;
-  max-width: 660px;
-  color: #94a3b8;
-  font-size: 15px;
-  line-height: 1.6;
-}
-
-/* Card & Panels */
-.card {
-  background: #ffffff08;
-  border: 1px solid #ffffff14;
-  border-radius: 24px;
-  padding: 24px;
-  box-shadow: 0 24px 80px #00000045;
-  backdrop-filter: blur(20px);
-  margin-bottom: 24px;
-}
-.dropzone {
-  border: 2px dashed #8b5cf666;
-  border-radius: 20px;
-  padding: 40px 20px;
-  text-align: center;
-  background: #ffffff04;
   cursor: pointer;
-  transition: .25s ease;
+  background: #f8fbff;
+  transition: border-color .2s, background-color .2s;
 }
-.dropzone:hover, .dropzone.drag {
-  border-color: #22c55e;
-  background: #22c55e0a;
+.up:hover, .up.drag {
+  border-color: #059669;
+  background: #f0fdf4;
 }
-.upload-icon {
-  font-size: 46px;
-  margin-bottom: 12px;
+.up input {
+  display: block;
+  margin: 14px auto 0;
+  max-width: 100%;
+  font-size: 16px;
 }
-.drop-title {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-.drop-desc {
-  color: #94a3b8;
-  font-size: 13px;
-  margin-bottom: 20px;
-}
-.btn-group {
+.buttons {
   display: flex;
-  justify-content: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
+  margin-top: 14px;
 }
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 13px 24px;
+button {
+  padding: 12px 18px;
   border: 0;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #8b5cf6, #06b6d4);
-  color: #fff;
-  font-weight: 700;
-  font-size: 14px;
+  border-radius: 9px;
+  font-weight: bold;
   cursor: pointer;
-  box-shadow: 0 8px 24px #8b5cf633;
-  transition: transform .15s;
-}
-.btn-primary:hover {
-  transform: translateY(-2px);
-}
-.btn-secondary {
+  font-size: 14px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 13px 20px;
-  border: 1px solid #ffffff20;
-  border-radius: 12px;
-  background: #ffffff0a;
-  color: #e2e8f0;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background .15s;
+  gap: 6px;
+  transition: transform .1s, opacity .15s;
 }
-.btn-secondary:hover {
-  background: #ffffff18;
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
-.btn-secondary:disabled, .btn-primary:disabled {
-  opacity: .45;
+button:disabled {
+  opacity: .5;
   cursor: not-allowed;
   transform: none;
 }
-
-/* Status & Progress */
-.status-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 18px;
-  padding: 12px 18px;
-  background: #ffffff06;
-  border: 1px solid #ffffff10;
-  border-radius: 14px;
-  flex-wrap: wrap;
-  gap: 10px;
+.pdf { background: #f4b400; color: #111; }
+.png { background: #10264d; color: #fff; }
+.single { background: #059669; color: #fff; }
+.status {
+  margin: 14px 0;
+  font-weight: bold;
+  line-height: 1.45;
+  font-size: 14px;
 }
-.status-badge {
+.note {
   font-size: 13px;
-  font-weight: 600;
+  color: #667085;
+  line-height: 1.5;
+  margin-top: 14px;
 }
-.status-badge.normal { color: #94a3b8; }
-.status-badge.loading { color: #38bdf8; }
-.status-badge.success { color: #4ade80; }
-.status-badge.warning { color: #facc15; }
-.status-badge.error { color: #f87171; }
-.progress-wrap {
-  width: 100%;
-  height: 6px;
-  background: #ffffff12;
-  border-radius: 4px;
-  overflow: hidden;
+.preview {
+  overflow: auto;
+  background: #dce3eb;
+  padding: 12px;
+  border-radius: 10px;
   margin-top: 10px;
 }
-.progress-bar {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, #8b5cf6, #22c55e);
-  transition: width .3s ease;
+.a4 {
+  width: 793px;
+  height: 1123px;
+  background: #fff;
+  position: relative;
+  margin: auto;
+  box-shadow: 0 4px 15px #0002;
+}
+.p {
+  position: absolute;
+  width: 125px;
+  height: 135px;
+  object-fit: cover;
+  border: 1px solid #111;
+  background: #fff;
 }
 
-/* Main Studio Layout: Editor Controls & Live Previews */
-.studio-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 22px;
-  margin-top: 24px;
+/* AI Quality Enhancement Controls Box */
+.enhance-box {
+  background: #f0f7ff;
+  border: 1px solid #b8daff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 14px 0;
+  display: none;
 }
-@media (max-width: 990px) {
-  .studio-grid { grid-template-columns: 1fr; }
-}
-
-.panel-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #e2e8f0;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.control-section {
-  background: #0f172a;
-  border: 1px solid #ffffff14;
-  border-radius: 18px;
-  padding: 18px;
-  margin-bottom: 16px;
-}
-.section-subtitle {
-  font-size: 13px;
-  font-weight: 700;
-  color: #cbd5e1;
-  margin-bottom: 12px;
+.enhance-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-/* Color Swatches for Background */
-.color-swatches {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 10px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.swatch-label {
+.enhance-title {
+  font-size: 14px;
+  font-weight: bold;
+  color: #004085;
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 8px 6px;
-  border: 2px solid #ffffff16;
-  border-radius: 12px;
-  background: #ffffff06;
-  cursor: pointer;
-  font-size: 11px;
-  color: #cbd5e1;
-  text-align: center;
-  transition: .15s ease;
 }
-.swatch-label:hover {
-  border-color: #8b5cf688;
-}
-.swatch-label input[type="radio"] {
-  display: none;
-}
-.swatch-label:has(input:checked) {
-  border-color: #22c55e;
-  background: #22c55e12;
-  color: #fff;
-  font-weight: 700;
-}
-.color-circle {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid #ffffff33;
-}
-.circle-white { background: #ffffff; }
-.circle-blue { background: #2563eb; }
-.circle-sky { background: #dbeafe; }
-.circle-gray { background: #f1f5f9; }
-.circle-red { background: #dc2626; }
-.circle-orig { background: linear-gradient(135deg, #a855f7, #06b6d4); }
-.circle-custom { background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); }
-
-/* Form Fields & Sliders */
-.field-grid {
+.enhance-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
 }
-.field-row {
-  margin-bottom: 12px;
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
-.field-row label {
+.slider-label {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  font-weight: 600;
-  color: #94a3b8;
-  margin-bottom: 4px;
+  font-weight: bold;
+  color: #334155;
 }
-.field-row select, .field-row input[type="text"], .field-row input[type="number"], .field-row input[type="color"] {
+.slider-input {
   width: 100%;
-  padding: 9px 12px;
-  border-radius: 10px;
-  border: 1px solid #ffffff1a;
-  background: #090e1a;
-  color: #f1f5f9;
-  font-size: 13px;
-}
-.field-row input[type="range"] {
-  width: 100%;
-  accent-color: #8b5cf6;
-}
-
-/* Exam Name & Date Checkbox */
-.checkbox-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: #8b5cf612;
-  border: 1px solid #8b5cf644;
-  padding: 10px 14px;
-  border-radius: 12px;
+  accent-color: #1760a8;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
 }
-.checkbox-banner input {
-  width: 18px;
-  height: 18px;
-  accent-color: #8b5cf6;
-}
-
-/* Previews Panel */
-.preview-container {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.single-preview-card {
-  text-align: center;
-  background: #0f172a;
-  border: 1px solid #ffffff14;
-  border-radius: 18px;
-  padding: 18px;
-}
-.passport-thumb {
-  max-width: 160px;
-  max-height: 210px;
-  border-radius: 4px;
-  box-shadow: 0 10px 30px #00000088;
-  background: #fff;
-  border: 1px solid #334155;
-  display: inline-block;
-}
-.sheet-preview-card {
-  text-align: center;
-  background: #0f172a;
-  border: 1px solid #ffffff14;
-  border-radius: 18px;
-  padding: 18px;
-  overflow: auto;
-}
-.sheet-thumb {
-  max-width: 100%;
-  max-height: 480px;
-  border-radius: 4px;
-  box-shadow: 0 12px 40px #00000099;
-  background: #fff;
-}
-
-/* Export Action Buttons */
-.action-buttons {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-top: 24px;
-}
-.btn-print {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: white;
-  border: 0;
-  padding: 14px 20px;
-  border-radius: 14px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  box-shadow: 0 8px 24px #10b98133;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: transform .15s;
-}
-.btn-print:hover { transform: translateY(-2px); }
-
-.btn-pdf {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: white;
-  border: 0;
-  padding: 14px 20px;
-  border-radius: 14px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  box-shadow: 0 8px 24px #f59e0b33;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: transform .15s;
-}
-.btn-pdf:hover { transform: translateY(-2px); }
-
-.btn-download {
-  background: linear-gradient(135deg, #2563eb, #0284c7);
-  color: white;
-  border: 0;
-  padding: 14px 20px;
-  border-radius: 14px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  box-shadow: 0 8px 24px #2563eb33;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: transform .15s;
-}
-.btn-download:hover { transform: translateY(-2px); }
-
-.btn-single {
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-  color: white;
-  border: 0;
-  padding: 14px 20px;
-  border-radius: 14px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  box-shadow: 0 8px 24px #8b5cf633;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: transform .15s;
-}
-.btn-single:hover { transform: translateY(-2px); }
-
-/* Feature tags */
-.features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-top: 24px;
-}
-.feature-box {
-  background: #ffffff06;
-  border: 1px solid #ffffff0f;
-  border-radius: 14px;
-  padding: 14px;
+.btn-mini {
+  padding: 5px 11px;
   font-size: 12px;
-  line-height: 1.5;
-  color: #94a3b8;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  border: 1px solid transparent;
 }
-.feature-box b {
-  display: block;
-  color: #f1f5f9;
-  font-size: 13px;
-  margin-bottom: 4px;
+.btn-auto {
+  background: #1760a8;
+  color: #fff;
 }
-
-/* Webcam Modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: #000000cc;
-  backdrop-filter: blur(12px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.modal-card {
-  background: #0f172a;
-  border: 1px solid #ffffff20;
-  border-radius: 20px;
-  padding: 22px;
-  max-width: 640px;
-  width: 100%;
-  text-align: center;
-  position: relative;
-}
-.video-holder {
-  position: relative;
-  width: 100%;
-  max-height: 400px;
-  border-radius: 14px;
-  overflow: hidden;
-  background: #000;
-  margin: 14px 0;
-}
-#webcamVideo {
-  width: 100%;
-  height: auto;
-  display: block;
-  transform: scaleX(-1);
-}
-.face-guide-oval {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 180px;
-  height: 240px;
-  border: 2px dashed #22c55ecc;
-  border-radius: 50%;
-  pointer-events: none;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
-}
-
-/* Hidden container for crisp direct printing */
-#printContainer {
-  display: none;
-}
-@media print {
-  body * { visibility: hidden !important; }
-  #printContainer, #printContainer * { visibility: visible !important; }
-  #printContainer {
-    display: block !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
-  .print-page-img {
-    width: 100% !important;
-    height: auto !important;
-    display: block !important;
-    page-break-after: always;
-  }
+.btn-reset {
+  background: #e2e8f0;
+  color: #1e293b;
+  border-color: #cbd5e1;
 }
 </style>
 </head>
 <body>
-<div class="bg"></div>
+<div class="box">
+  <a href="./">← Back</a>
+  <h1>Passport Photo Maker</h1>
+  <p>Upload a photo and create 6 AI-enhanced passport photos on an A4 print sheet.</p>
 
-<div class="wrap">
-  <!-- Top Navigation -->
-  <header class="top">
-    <div class="brand">
-      <div class="brand-badge">A</div>
-      <span>ANVI E-Mitra & CSC Centre</span>
-    </div>
-    <a class="back-link" href="./index.html">← All Services</a>
-  </header>
+  <label class="up" id="dropzone">
+    <div style="font-size:20px">📷 <b>Choose Photo</b></div>
+    <small>JPG / PNG / WEBP (Photo upload karein)</small>
+    <input id="file" type="file" accept="image/jpeg,image/png,image/webp,image/*">
+  </label>
 
-  <!-- Hero Header -->
-  <section class="hero">
-    <div class="eyebrow"><span class="dot"></span> AI Portrait & Passport Photo Studio</div>
-    <h1>AI Passport Size Photo Studio & Print Maker</h1>
-    <p>AI बैकग्राउंड रिमूवल (White, Studio Blue, Sky Blue), ICAO फेस ऑटो-फ्रेमिंग, स्किन स्मूथिंग, तीखापन और 300 DPI A4 / 4×6 प्रिंट शीट तैयार करें।</p>
-  </section>
+  <div class="buttons">
+    <button id="pdf" class="pdf" disabled>⬇ Save / Print A4 PDF</button>
+    <button id="png" class="png" disabled>⬇ Download A4 PNG</button>
+    <button id="single" class="single" disabled>⬇ Download Single Photo (Online Form)</button>
+  </div>
 
-  <!-- Upload & Input Card -->
-  <div class="card">
-    <div id="dropzone" class="dropzone">
-      <div class="upload-icon">📸</div>
-      <div class="drop-title">Upload Customer Photo or Capture via Camera</div>
-      <div class="drop-desc">JPG, PNG, WEBP सपोर्टेड • AI स्वतः ही बैकग्राउंड हटाकर फेस और शोल्डर को सही अनुपात में फ्रेम करेगा।</div>
-      <div class="btn-group">
-        <button id="chooseBtn" class="btn-primary">📁 Choose Photo</button>
-        <button id="cameraBtn" class="btn-secondary">📷 Open Webcam / Camera</button>
-        <button id="sampleBtn" class="btn-secondary">⚡ Try Demo Portrait</button>
+  <div id="status" class="status">Choose a photo.</div>
+
+  <!-- AI Photo Quality Enhancement Box -->
+  <div id="enhanceBox" class="enhance-box">
+    <div class="enhance-header">
+      <span class="enhance-title">✨ AI Photo Quality Enhancement (क्वालिटी व चेहरे की स्पष्टता)</span>
+      <div style="display:flex; gap:6px;">
+        <button id="autoBtn" class="btn-mini btn-auto">⚡ Auto AI Enhance</button>
+        <button id="resetBtn" class="btn-mini btn-reset">↺ Reset</button>
       </div>
-      <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,image/*" hidden>
     </div>
-
-    <!-- Status & Progress -->
-    <div class="status-bar">
-      <div>
-        <span style="color:#94a3b8; font-size:12px; margin-right:8px;">Status:</span>
-        <span id="statusText" class="status-badge normal">Upload a photo to begin.</span>
+    <div class="enhance-grid">
+      <div class="slider-group">
+        <div class="slider-label"><span>Brightness (चमक):</span><span id="bVal">+6</span></div>
+        <input id="bright" class="slider-input" type="range" min="-30" max="30" value="6">
       </div>
-      <span id="progressLabel" style="font-size:12px; color:#cbd5e1;"></span>
-    </div>
-    <div id="progressWrap" class="progress-wrap" hidden>
-      <div id="progressBar" class="progress-bar"></div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Contrast (कंट्रास्ट):</span><span id="cVal">+8</span></div>
+        <input id="contrast" class="slider-input" type="range" min="-30" max="30" value="8">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Sharpness (तीखापन / आंखें-बाल स्पष्टता):</span><span id="sVal">45%</span></div>
+        <input id="sharp" class="slider-input" type="range" min="0" max="100" value="45">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Skin Smooth (फेस स्मूथिंग):</span><span id="smVal">30%</span></div>
+        <input id="smooth" class="slider-input" type="range" min="0" max="100" value="30">
+      </div>
     </div>
   </div>
 
-  <!-- Main Editor Section (Hidden until image loaded) -->
-  <div id="editorSection" class="studio-grid" hidden>
-    
-    <!-- Left Column: Controls & AI Settings -->
-    <div class="controls-column">
-      <div class="panel-title">🛠️ Studio Controls & AI Enhancements</div>
+  <p class="note">AI person segmentation • pure white background • AI face detection • natural head/shoulder framing • AI quality enhancement (clarity & smoothing) • A4 300 DPI • 1.3×1.4 inch photos • 6 copies.</p>
 
-      <!-- Control 1: Background Replacement -->
-      <div class="control-section">
-        <div class="section-subtitle">
-          <span>🎨 1. AI Background Color (बैकग्राउंड रंग)</span>
-        </div>
-        <div class="color-swatches">
-          <label class="swatch-label">
-            <input type="radio" name="bgColor" value="white" checked>
-            <div class="color-circle circle-white"></div>
-            <span>Pure White<br>(Passport/Exam)</span>
-          </label>
-          <label class="swatch-label">
-            <input type="radio" name="bgColor" value="studio-blue">
-            <div class="color-circle circle-blue"></div>
-            <span>Studio Blue<br>(State/Police)</span>
-          </label>
-          <label class="swatch-label">
-            <input type="radio" name="bgColor" value="sky-blue">
-            <div class="color-circle circle-sky"></div>
-            <span>Soft Sky Blue<br>(Formal)</span>
-          </label>
-          <label class="swatch-label">
-            <input type="radio" name="bgColor" value="gray">
-            <div class="color-circle circle-gray"></div>
-            <span>Light Gray<br>(Visa)</span>
-          </label>
-          <label class="swatch-label">
-            <input type="radio" name="bgColor" value="red">
-            <div class="color-circle circle-red"></div>
-            <span>Studio Red<br>(Badges)</span>
-          </label>
-          <label class="swatch-label">
-            <input type="radio" name="bgColor" value="original">
-            <div class="color-circle circle-orig"></div>
-            <span>Original<br>(No Cutout)</span>
-          </label>
-          <label class="swatch-label">
-            <input type="radio" name="bgColor" value="custom">
-            <div class="color-circle circle-custom"></div>
-            <span>Custom<br>Color</span>
-          </label>
-        </div>
-        <div id="customColorWrap" class="field-row" hidden>
-          <label>Pick Custom Hex Color</label>
-          <input id="customColorPicker" type="color" value="#ffffff">
-        </div>
-      </div>
-
-      <!-- Control 2: Passport Size & Framing -->
-      <div class="control-section">
-        <div class="section-subtitle">
-          <span>👤 2. Size & Face Framing (साइज़ व हेड पोज़ीशन)</span>
-          <button id="resetFramingBtn" class="btn-secondary" style="padding:4px 10px; font-size:11px;">↺ Reset Framing</button>
-        </div>
-        <div class="field-row">
-          <label>Passport Size Preset</label>
-          <select id="presetSelect">
-            <option value="indian-passport" selected>Indian Passport / Exams (3.5 × 4.5 cm / 35 × 45 mm)</option>
-            <option value="us-visa">US / International Visa (2 × 2 inch / 5.08 × 5.08 cm)</option>
-            <option value="stamp-size">Stamp Size / Pocket Photo (2.5 × 3.0 cm)</option>
-            <option value="custom">Custom Dimensions (Manual mm)</option>
-          </select>
-        </div>
-        <div id="customDimWrap" class="field-grid" hidden>
-          <div class="field-row">
-            <label>Width (mm)</label>
-            <input id="customWInput" type="number" min="15" max="100" value="35">
-          </div>
-          <div class="field-row">
-            <label>Height (mm)</label>
-            <input id="customHInput" type="number" min="15" max="100" value="45">
-          </div>
-        </div>
-        <div class="field-grid">
-          <div class="field-row">
-            <label><span>Face Zoom / Scale</span><span id="zoomRangeVal">1.0</span></label>
-            <input id="zoomRange" type="range" min="0.7" max="1.5" step="0.05" value="1">
-          </div>
-          <div class="field-row">
-            <label><span>Head Tilt / Rotation</span><span id="rotateRangeVal">0°</span></label>
-            <input id="rotateRange" type="range" min="-15" max="15" step="1" value="0">
-          </div>
-        </div>
-        <div class="field-grid">
-          <div class="field-row">
-            <label><span>Shift Left/Right</span><span id="panXRangeVal">0</span></label>
-            <input id="panXRange" type="range" min="-80" max="80" step="2" value="0">
-          </div>
-          <div class="field-row">
-            <label><span>Shift Up/Down</span><span id="panYRangeVal">0</span></label>
-            <input id="panYRange" type="range" min="-80" max="80" step="2" value="0">
-          </div>
-        </div>
-      </div>
-
-      <!-- Control 3: AI Enhancement & Studio Retouching -->
-      <div class="control-section">
-        <div class="section-subtitle">
-          <span>✨ 3. AI Studio Enhancement (लाइटिंग व ब्यूटी)</span>
-          <div style="display:flex; gap:6px;">
-            <button id="magicEnhanceBtn" class="btn-primary" style="padding:4px 10px; font-size:11px;">⚡ One-Click AI Enhance</button>
-            <button id="resetEnhanceBtn" class="btn-secondary" style="padding:4px 10px; font-size:11px;">↺ Reset</button>
-          </div>
-        </div>
-        <div class="field-grid">
-          <div class="field-row">
-            <label><span>Brightness (चमक)</span><span id="brightnessRangeVal">+4</span></label>
-            <input id="brightnessRange" type="range" min="-40" max="40" step="2" value="4">
-          </div>
-          <div class="field-row">
-            <label><span>Contrast (कंट्रास्ट)</span><span id="contrastRangeVal">+6</span></label>
-            <input id="contrastRange" type="range" min="-40" max="40" step="2" value="6">
-          </div>
-        </div>
-        <div class="field-grid">
-          <div class="field-row">
-            <label><span>Sharpness (तीखापन / Unsharp)</span><span id="sharpnessRangeVal">45%</span></label>
-            <input id="sharpnessRange" type="range" min="0" max="100" step="5" value="45">
-          </div>
-          <div class="field-row">
-            <label><span>Skin Smooth (फेस स्मूथिंग)</span><span id="skinSmoothRangeVal">30%</span></label>
-            <input id="skinSmoothRange" type="range" min="0" max="100" step="5" value="30">
-          </div>
-        </div>
-        <div class="field-grid">
-          <div class="field-row">
-            <label><span>Saturation (रंग तीव्रता)</span><span id="saturationRangeVal">+4</span></label>
-            <input id="saturationRange" type="range" min="-40" max="40" step="2" value="4">
-          </div>
-          <div class="field-row">
-            <label><span>Color Warmth (वॉर्मथ / टोन)</span><span id="warmthRangeVal">0</span></label>
-            <input id="warmthRange" type="range" min="-30" max="30" step="2" value="0">
-          </div>
-        </div>
-      </div>
-
-      <!-- Control 4: Name & Date of Photo (DOP) Strip -->
-      <div class="control-section">
-        <label class="checkbox-banner">
-          <input id="nameDateCheck" type="checkbox">
-          <span>🏷️ Add Name & Date of Photo (DOP) Strip (SSC / Govt Exam Format)</span>
-        </label>
-        <div id="nameDateFields" class="field-grid" hidden>
-          <div class="field-row">
-            <label>Candidate Name (अभ्यर्थी का नाम)</label>
-            <input id="candidateNameInput" type="text" placeholder="e.g. RAMESH SHARMA">
-          </div>
-          <div class="field-row">
-            <label>Date of Photo (DOP - फोटो खींचने की तिथि)</label>
-            <input id="photoDateInput" type="text" placeholder="DD/MM/YYYY">
-          </div>
-        </div>
-      </div>
-
-      <!-- Control 5: Print Sheet & Paper Layout -->
-      <div class="control-section">
-        <div class="section-subtitle">
-          <span>🖨️ 4. Sheet Layout (प्रिंट शीट सेटिंग्स)</span>
-        </div>
-        <div class="field-grid">
-          <div class="field-row">
-            <label>Paper Size</label>
-            <select id="paperSelect">
-              <option value="a4" selected>A4 Sheet (210 × 297 mm)</option>
-              <option value="4x6">4 × 6 inch Photo Paper (102 × 152 mm)</option>
-            </select>
-          </div>
-          <div class="field-row">
-            <label>Photo Count (प्रतिलिपियां)</label>
-            <select id="photoCountSelect">
-              <option value="6">6 Photos (1 Strip - Fast Print)</option>
-              <option value="8">8 Photos (2 × 4 Grid)</option>
-              <option value="12" selected>12 Photos (3 × 4 Grid - E-Mitra Standard)</option>
-              <option value="16">16 Photos (4 × 4 Grid)</option>
-              <option value="30">30 Photos (5 × 6 Grid - Full A4)</option>
-            </select>
-          </div>
-        </div>
-        <div class="field-grid">
-          <div class="field-row">
-            <label>Border Cut Guide</label>
-            <select id="borderSelect">
-              <option value="black" selected>Thin Black Border (1px Cut Line)</option>
-              <option value="gray">Subtle Gray Border</option>
-              <option value="none">No Border (Borderless)</option>
-            </select>
-          </div>
-          <div class="field-row">
-            <label>Sheet Margin / Gap (mm)</label>
-            <div style="display:flex; gap:6px;">
-              <input id="marginInput" type="number" min="2" max="25" value="8" title="Margin">
-              <input id="gapInput" type="number" min="1" max="15" value="4" title="Gap">
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Right Column: Live Previews -->
-    <div class="preview-container">
-      
-      <!-- Single Photo Preview -->
-      <div class="single-preview-card">
-        <div class="panel-title" style="justify-content:center;">
-          <span>👁️ Single Passport Photo (3.5 × 4.5 cm @ 300 DPI)</span>
-        </div>
-        <div id="singlePreviewHolder" style="margin: 10px 0;"></div>
-        <div style="font-size:12px; color:#94a3b8;">✓ ICAO 75% Face Ratio • White/Blue Background • Crisp Hair & Facial Contours</div>
-      </div>
-
-      <!-- Sheet Preview -->
-      <div class="sheet-preview-card">
-        <div class="section-subtitle">
-          <span>🖨️ Live Print Sheet Preview (A4 / 4×6)</span>
-          <span id="sheetInfoBadge" class="eyebrow" style="margin-bottom:0;">12 Copies • A4 • 300 DPI</span>
-        </div>
-        <div id="sheetPreviewHolder" style="margin-top:10px;"></div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Action Buttons (Hidden until image loaded) -->
-  <div id="actionsSection" class="action-buttons" hidden>
-    <button id="printBtn" class="btn-print" disabled>🖨️ Direct High-DPI Print</button>
-    <button id="pdfBtn" class="btn-pdf" disabled>📄 Download A4 PDF Sheet</button>
-    <button id="pngBtn" class="btn-download" disabled>🖼️ Download 300 DPI PNG Sheet</button>
-    <button id="singleBtn" class="btn-single" disabled>📱 Download Single Photo (20-50KB for Online Forms)</button>
-  </div>
-
-  <!-- Feature Information Notes -->
-  <div class="features-grid">
-    <div class="feature-box">
-      <b>✓ AI Background Removal</b>
-      Pure White, Studio Blue, Soft Sky Blue और Neutral Gray बैकग्राउंड एक क्लिक में बदलें। बाल और कान की प्राकृतिक आउटलाइन सुरक्षित रहती है।
-    </div>
-    <div class="feature-box">
-      <b>✓ ICAO 70-80% Face Framing</b>
-      सरकारी मानकों (Passport, Visa, SSC, UPSC) के अनुसार चेहरे और कंधे का सही अनुपात व हेडरूम स्वतः ही सेट हो जाता है।
-    </div>
-    <div class="feature-box">
-      <b>✓ AI Magic Retouching</b>
-      सामान्य मोबाइल कैमरों की कम रोशनी, पीलेपन व धुंधलेपन को ठीक करके आंखें, बाल व चेहरे को स्पष्ट और प्रिंट-योग्य बनाता है।
-    </div>
-    <div class="feature-box">
-      <b>✓ Name & Date (DOP) Strip</b>
-      SSC CGL, Police, Army, REET आदि सरकारी परीक्षाओं के लिए फोटो पर नीचे अभ्यर्थी का नाम और फोटो की तारीख लगाने की सुविधा।
-    </div>
-  </div>
-
+  <div class="preview"><div id="a4" class="a4"></div></div>
 </div>
 
-<!-- Camera Modal -->
-<div id="webcamModal" class="modal-overlay" hidden>
-  <div class="modal-card">
-    <h3 style="margin:0 0 8px; color:#fff;">📷 Capture Customer Photo</h3>
-    <p style="margin:0 0 12px; font-size:13px; color:#94a3b8;">ग्राहक के चेहरे को स्क्रीन पर बनी हरी अंडाकार गाइड (Oval Guide) के अंदर रखें।</p>
-    <div class="video-holder">
-      <video id="webcamVideo" autoplay playsinline></video>
-      <div class="face-guide-oval"></div>
-    </div>
-    <div class="btn-group">
-      <button id="snapBtn" class="btn-primary">📸 Snap Photo</button>
-      <button id="closeWebcamBtn" class="btn-secondary">✕ Cancel</button>
-    </div>
-  </div>
-</div>
+<script>
+const fileInput = document.getElementById('file');
+const dropzone = document.getElementById('dropzone');
+const statusEl = document.getElementById('status');
+const a4 = document.getElementById('a4');
+const pdfBtn = document.getElementById('pdf');
+const pngBtn = document.getElementById('png');
+const singleBtn = document.getElementById('single');
+const enhanceBox = document.getElementById('enhanceBox');
 
-<!-- Hidden container for high-DPI browser printing -->
-<div id="printContainer"></div>
+const brightInput = document.getElementById('bright');
+const contrastInput = document.getElementById('contrast');
+const sharpInput = document.getElementById('sharp');
+const smoothInput = document.getElementById('smooth');
+const bVal = document.getElementById('bVal');
+const cVal = document.getElementById('cVal');
+const sVal = document.getElementById('sVal');
+const smVal = document.getElementById('smVal');
+const autoBtn = document.getElementById('autoBtn');
+const resetBtn = document.getElementById('resetBtn');
 
-<script type="module" src="./src/passport-photo.js"></script>
+const W = 2480, H = 3508, PW = 390, PH = 420, G = 20, M = 20;
+let photoData = '';
+let sheetBlob = null;
+let rawCroppedCanvas = null; // Unenhanced base cutout canvas
+let uploadedFileName = 'passport-photo';
+let faceDetectorPromise = null;
+let segmenterPromise = null;
+
+const loadImage = u => new Promise((r, j) => {
+  const i = new Image();
+  i.onload = () => r(i);
+  i.onerror = j;
+  i.src = u;
+});
+
+// Drag & Drop visual feedback
+if (dropzone) {
+  dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+  dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      fileInput.files = e.dataTransfer.files;
+      handleFileChange();
+    }
+  });
+}
+
+// -----------------------------------------------------------------------------
+// AI Face Detection (MediaPipe & Native fallback)
+// -----------------------------------------------------------------------------
+async function detectFace(img) {
+  try {
+    if (faceDetectorPromise === null) {
+      faceDetectorPromise = import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/+esm').then(async v => {
+        const fileset = await v.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm');
+        return v.FaceDetector.createFromOptions(fileset, {
+          baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+            delegate: 'CPU'
+          },
+          runningMode: 'IMAGE',
+          minDetectionConfidence: 0.45
+        });
+      }).catch(e => { faceDetectorPromise = null; throw e; });
+    }
+    const d = await faceDetectorPromise;
+    const r = d.detect(img);
+    const b = r.detections && r.detections[0] && r.detections[0].boundingBox;
+    if (b) return { x: b.originX, y: b.originY, width: b.width, height: b.height };
+  } catch (e) {
+    console.warn('MediaPipe face detector:', e);
+  }
+
+  try {
+    if ('FaceDetector' in window) {
+      const d = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+      const f = await d.detect(img);
+      if (f[0]) return f[0].boundingBox;
+    }
+  } catch (e) {
+    console.warn('Native face detector:', e);
+  }
+
+  return null;
+}
+
+// -----------------------------------------------------------------------------
+// AI Selfie Segmentation (MediaPipe)
+// -----------------------------------------------------------------------------
+async function getSegmenter() {
+  if (segmenterPromise) return segmenterPromise;
+  segmenterPromise = (async () => {
+    const v = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/+esm');
+    const fileset = await v.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm');
+    return v.ImageSegmenter.createFromOptions(fileset, {
+      baseOptions: {
+        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
+        delegate: 'CPU'
+      },
+      runningMode: 'IMAGE',
+      outputCategoryMask: true,
+      outputConfidenceMasks: true
+    });
+  })().catch(e => { segmenterPromise = null; throw e; });
+  return segmenterPromise;
+}
+
+// Anti-aliased smoothstep edge feathering for hair and shoulders
+function makeSegmentationCanvas(mask) {
+  const mw = mask.width, mh = mask.height, vals = mask.values;
+  const mc = document.createElement('canvas');
+  mc.width = mw;
+  mc.height = mh;
+  const mx = mc.getContext('2d');
+  const md = mx.createImageData(mw, mh);
+  const p = md.data;
+
+  for (let i = 0, j = 0; i < vals.length; i++, j += 4) {
+    let v = vals[i];
+    if (!Number.isFinite(v)) v = 0;
+    v = Math.max(0, Math.min(1, v));
+    // Cubic smoothstep for natural hair transparency and soft anti-aliased edge
+    const t = Math.max(0, Math.min(1, (v - 0.16) / 0.65));
+    const a = Math.round(t * t * (3 - 2 * t) * 255);
+    p[j] = 255;
+    p[j + 1] = 255;
+    p[j + 2] = 255;
+    p[j + 3] = a;
+  }
+  mx.putImageData(md, 0, 0);
+  return mc;
+}
+
+async function aiCut(file, orig) {
+  statusEl.textContent = '🤖 AI person segmentation loading…';
+  const seg = await getSegmenter();
+  statusEl.textContent = '🤖 AI removing background…';
+  const maxSide = 1024, scale = Math.min(1, maxSide / Math.max(orig.naturalWidth, orig.naturalHeight));
+  const sc = document.createElement('canvas');
+  sc.width = Math.max(1, Math.round(orig.naturalWidth * scale));
+  sc.height = Math.max(1, Math.round(orig.naturalHeight * scale));
+  const sx = sc.getContext('2d');
+  sx.imageSmoothingQuality = 'high';
+  sx.drawImage(orig, 0, 0, sc.width, sc.height);
+
+  const result = seg.segment(sc);
+  try {
+    let maskObj = null, vals = null;
+    if (result.confidenceMasks && result.confidenceMasks.length) {
+      maskObj = result.confidenceMasks.length > 1 ? result.confidenceMasks[1] : result.confidenceMasks[0];
+      vals = maskObj.getAsFloat32Array();
+    } else if (result.categoryMask) {
+      maskObj = result.categoryMask;
+      vals = maskObj.getAsFloat32Array();
+    }
+    if (!maskObj || !vals || !vals.length) throw new Error('AI segmentation returned no mask');
+    const maskCanvas = makeSegmentationCanvas({ width: maskObj.width, height: maskObj.height, values: vals });
+    return { maskCanvas, scale, maskWidth: maskObj.width, maskHeight: maskObj.height };
+  } finally {
+    if (result && typeof result.close === 'function') result.close();
+  }
+}
+
+// -----------------------------------------------------------------------------
+// AI Quality Enhancement Filters (Sharpness, Skin Smooth, Brightness & Contrast)
+// -----------------------------------------------------------------------------
+function applyQualityEnhance(srcCanvas, bright, contrast, sharp, smooth) {
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = PW;
+  outCanvas.height = PH;
+  const ctx = outCanvas.getContext('2d');
+  ctx.drawImage(srcCanvas, 0, 0);
+
+  const imgData = ctx.getImageData(0, 0, PW, PH);
+  const p = imgData.data;
+
+  const bOffset = bright * 1.5;
+  const cFactor = (contrast + 100) / 100;
+
+  // 1. Exposure, Contrast & Warmth adjustment
+  for (let i = 0; i < p.length; i += 4) {
+    let r = p[i], g = p[i + 1], b = p[i + 2];
+    // Do not alter pure white background pixels
+    if (r === 255 && g === 255 && b === 255) continue;
+
+    r = Math.min(255, Math.max(0, (r - 128) * cFactor + 128 + bOffset));
+    g = Math.min(255, Math.max(0, (g - 128) * cFactor + 128 + bOffset));
+    b = Math.min(255, Math.max(0, (b - 128) * cFactor + 128 + bOffset));
+
+    p[i] = r;
+    p[i + 1] = g;
+    p[i + 2] = b;
+  }
+
+  // 2. Edge-aware skin smoothing (cleans camera noise & blemishes while keeping eyes/hair sharp)
+  if (smooth > 0) {
+    const factor = (smooth / 100) * 0.7;
+    const copy = new Uint8ClampedArray(p);
+    for (let y = 1; y < PH - 1; y++) {
+      for (let x = 1; x < PW - 1; x++) {
+        const idx = (y * PW + x) * 4;
+        const r = copy[idx], g = copy[idx + 1], b = copy[idx + 2];
+        if (r === 255 && g === 255 && b === 255) continue;
+
+        // Detect skin pixels
+        if (r > 65 && r > g && g > b && (r - g) > 8) {
+          let rSum = 0, gSum = 0, bSum = 0, count = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const nIdx = ((y + dy) * PW + (x + dx)) * 4;
+              const nr = copy[nIdx], ng = copy[nIdx + 1], nb = copy[nIdx + 2];
+              if (Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb) < 80) {
+                rSum += nr; gSum += ng; bSum += nb; count++;
+              }
+            }
+          }
+          if (count > 0) {
+            p[idx] = Math.round(r * (1 - factor) + (rSum / count) * factor);
+            p[idx + 1] = Math.round(g * (1 - factor) + (gSum / count) * factor);
+            p[idx + 2] = Math.round(b * (1 - factor) + (bSum / count) * factor);
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Unsharp mask sharpening (makes eyes, eyebrows, hair, and lips crisp for printing)
+  if (sharp > 0) {
+    const k = (sharp / 100) * 0.72;
+    const copy = new Uint8ClampedArray(p);
+    for (let y = 1; y < PH - 1; y++) {
+      for (let x = 1; x < PW - 1; x++) {
+        const idx = (y * PW + x) * 4;
+        const r = copy[idx], g = copy[idx + 1], b = copy[idx + 2];
+        if (r === 255 && g === 255 && b === 255) continue;
+
+        for (let c = 0; c < 3; c++) {
+          const center = copy[idx + c];
+          const up = copy[((y - 1) * PW + x) * 4 + c];
+          const down = copy[((y + 1) * PW + x) * 4 + c];
+          const left = copy[(y * PW + (x - 1)) * 4 + c];
+          const right = copy[(y * PW + (x + 1)) * 4 + c];
+          const val = center + k * (4 * center - up - down - left - right);
+          p[idx + c] = Math.min(255, Math.max(0, val));
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  return outCanvas;
+}
+
+// -----------------------------------------------------------------------------
+// Core Passport Photo Maker Pipeline
+// -----------------------------------------------------------------------------
+async function makePhoto(file) {
+  const original = URL.createObjectURL(file);
+  try {
+    const orig = await loadImage(original);
+    statusEl.textContent = '🤖 AI detecting face…';
+    const face = await detectFace(orig);
+    const seg = await aiCut(file, orig);
+
+    const sw = orig.naturalWidth, sh = orig.naturalHeight, ratio = PW / PH;
+    let cw = sw, ch = sw / ratio, sx = (sw - cw) / 2, sy = (sh - ch) * 0.12;
+    if (ch > sh) { ch = sh; cw = ch * ratio; sy = 0; }
+
+    if (face) {
+      statusEl.textContent = '👤 AI face found — balanced headroom, head and shoulders…';
+      // Wider framing: keep complete hair/head and more shoulder area.
+      // Face is an anchor occupying roughly 36% of the photo height.
+      const targetFaceRatio = 0.36;
+      ch = Math.min(sh, Math.max(face.height / targetFaceRatio, face.height * 2.78));
+      cw = ch * ratio;
+      if (cw > sw) { cw = sw; ch = cw / ratio; }
+      const fx = face.x + face.width / 2;
+      sx = fx - cw / 2;
+      // Extra top margin prevents top of hair/head from being clipped
+      sy = face.y - face.height * 0.65;
+    }
+
+    sx = Math.max(0, Math.min(sw - cw, sx));
+    sy = Math.max(0, Math.min(sh - ch, sy));
+
+    const out = document.createElement('canvas');
+    out.width = PW;
+    out.height = PH;
+    const o = out.getContext('2d');
+    o.imageSmoothingEnabled = true;
+    o.imageSmoothingQuality = 'high';
+    o.fillStyle = '#fff';
+    o.fillRect(0, 0, PW, PH);
+
+    const fg = document.createElement('canvas');
+    fg.width = PW;
+    fg.height = PH;
+    const f = fg.getContext('2d');
+    f.imageSmoothingEnabled = true;
+    f.imageSmoothingQuality = 'high';
+    f.drawImage(orig, sx, sy, cw, ch, 0, 0, PW, PH);
+
+    const cropMask = document.createElement('canvas');
+    cropMask.width = PW;
+    cropMask.height = PH;
+    const cm = cropMask.getContext('2d');
+    const mx = sx * seg.scale, my = sy * seg.scale, mw = cw * seg.scale, mh = ch * seg.scale;
+    cm.drawImage(seg.maskCanvas, mx, my, mw, mh, 0, 0, PW, PH);
+
+    f.globalCompositeOperation = 'destination-in';
+    f.drawImage(cropMask, 0, 0);
+    f.globalCompositeOperation = 'source-over';
+    o.drawImage(fg, 0, 0);
+
+    // Cache unenhanced raw cutout so slider adjustments are instant!
+    rawCroppedCanvas = out;
+
+    // Apply default AI quality enhancement
+    const enhanced = applyQualityEnhance(
+      rawCroppedCanvas,
+      parseInt(brightInput.value, 10),
+      parseInt(contrastInput.value, 10),
+      parseInt(sharpInput.value, 10),
+      parseInt(smoothInput.value, 10)
+    );
+
+    return enhanced.toDataURL('image/jpeg', 0.97);
+  } finally {
+    URL.revokeObjectURL(original);
+  }
+}
+
+function buildSheet() {
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff';
+  x.fillRect(0, 0, W, H);
+  return loadImage(photoData).then(im => {
+    for (let i = 0; i < 6; i++) {
+      const xx = M + i * (PW + G);
+      x.drawImage(im, xx, M, PW, PH);
+      x.strokeStyle = '#111';
+      x.lineWidth = 4;
+      x.strokeRect(xx + 2, M + 2, PW - 4, PH - 4);
+    }
+    return new Promise(r => c.toBlob(r, 'image/png'));
+  });
+}
+
+function preview() {
+  a4.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const im = document.createElement('img');
+    im.className = 'p';
+    im.src = photoData;
+    im.style.left = ((M + i * (PW + G)) * 793 / W) + 'px';
+    im.style.top = (M * 1123 / H) + 'px';
+    a4.appendChild(im);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Slider Update Handler (Live update without re-running AI segmentation)
+// -----------------------------------------------------------------------------
+let updateTimer = null;
+function handleSliderChange() {
+  if (!rawCroppedCanvas) return;
+  const b = parseInt(brightInput.value, 10);
+  const c = parseInt(contrastInput.value, 10);
+  const s = parseInt(sharpInput.value, 10);
+  const sm = parseInt(smoothInput.value, 10);
+
+  bVal.textContent = (b > 0 ? '+' : '') + b;
+  cVal.textContent = (c > 0 ? '+' : '') + c;
+  sVal.textContent = s + '%';
+  smVal.textContent = sm + '%';
+
+  const enhanced = applyQualityEnhance(rawCroppedCanvas, b, c, s, sm);
+  photoData = enhanced.toDataURL('image/jpeg', 0.97);
+  preview();
+
+  clearTimeout(updateTimer);
+  updateTimer = setTimeout(async () => {
+    sheetBlob = await buildSheet();
+  }, 250);
+}
+
+brightInput.oninput = handleSliderChange;
+contrastInput.oninput = handleSliderChange;
+sharpInput.oninput = handleSliderChange;
+smoothInput.oninput = handleSliderChange;
+
+autoBtn.onclick = () => {
+  brightInput.value = 6;
+  contrastInput.value = 8;
+  sharpInput.value = 45;
+  smoothInput.value = 30;
+  handleSliderChange();
+  statusEl.textContent = '✨ Auto AI Quality Enhancement applied!';
+};
+
+resetBtn.onclick = () => {
+  brightInput.value = 0;
+  contrastInput.value = 0;
+  sharpInput.value = 0;
+  smoothInput.value = 0;
+  handleSliderChange();
+  statusEl.textContent = '↺ Original photo quality restored.';
+};
+
+// -----------------------------------------------------------------------------
+// File Upload & Export Handlers
+// -----------------------------------------------------------------------------
+async function handleFileChange() {
+  const f = fileInput.files[0];
+  if (!f) return;
+  uploadedFileName = f.name ? f.name.replace(/\.[^.]+$/, '') : 'passport-photo';
+  pdfBtn.disabled = pngBtn.disabled = singleBtn.disabled = true;
+  sheetBlob = null;
+  photoData = '';
+  rawCroppedCanvas = null;
+  a4.innerHTML = '';
+  enhanceBox.style.display = 'none';
+
+  try {
+    photoData = await makePhoto(f);
+    preview();
+    enhanceBox.style.display = 'block';
+    statusEl.textContent = '📄 Creating exact A4 sheet…';
+    sheetBlob = await buildSheet();
+    pdfBtn.disabled = pngBtn.disabled = singleBtn.disabled = false;
+    statusEl.textContent = '✓ Complete — AI background removed, pure white background applied, balanced head/shoulder framing & photo quality enhanced.';
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = '❌ AI processing failed: ' + (e?.message || e);
+    pdfBtn.disabled = pngBtn.disabled = singleBtn.disabled = true;
+  }
+}
+
+fileInput.onchange = handleFileChange;
+
+pngBtn.onclick = () => {
+  if (!sheetBlob) return;
+  const u = URL.createObjectURL(sheetBlob), a = document.createElement('a');
+  a.href = u;
+  a.download = `${uploadedFileName}_A4_300DPI.png`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(u), 1500);
+};
+
+pdfBtn.onclick = () => {
+  if (!photoData) return;
+  const w = open('', '_blank');
+  if (!w) return;
+  let q = '';
+  for (let i = 0; i < 6; i++) {
+    const xx = (M + i * (PW + G)) * 210 / W, yy = M * 297 / H;
+    q += `<img src="${photoData}" style="position:absolute;left:${xx}mm;top:${yy}mm;width:33.02mm;height:35.56mm;object-fit:cover;border:.35mm solid #111">`;
+  }
+  w.document.write(`<style>@page{size:A4;margin:0}body{margin:0}</style>${q}`);
+  w.document.close();
+  setTimeout(() => w.print(), 700);
+};
+
+singleBtn.onclick = () => {
+  if (!photoData) return;
+  const a = document.createElement('a');
+  a.href = photoData;
+  a.download = `${uploadedFileName}_passport_single.jpg`;
+  a.click();
+};
+</script>
 </body>
 </html>
