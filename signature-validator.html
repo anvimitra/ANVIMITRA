@@ -622,9 +622,9 @@ body {
         <div class="field">
           <label>Stamp Placement</label>
           <select id="stampPosition">
-            <option value="auto">Auto (Detect Original Signature Field / QR side)</option>
+            <option value="auto" selected>Auto (Detect Original Signature Field from PDF)</option>
             <option value="wireman">Wireman / Rajasthan Permit (Near QR Code)</option>
-            <option value="bottom-right" selected>Bottom Right (State Govt / Caste / Nakal)</option>
+            <option value="bottom-right">Bottom Right (State Govt / Caste / Nakal)</option>
             <option value="bottom-left">Bottom Left (Aadhaar / e-Sign Layout)</option>
             <option value="top-right">Top Right</option>
             <option value="custom">Custom (Click on preview to position)</option>
@@ -633,7 +633,7 @@ body {
         <div class="field">
           <label>Apply To Page</label>
           <select id="stampPage">
-            <option value="auto" selected>Signature Page (Auto)</option>
+            <option value="auto" selected>Signature Page (Auto-detected)</option>
             <option value="first">First Page (Page 1)</option>
             <option value="last">Last Page</option>
             <option value="all">All Pages</option>
@@ -641,23 +641,23 @@ body {
         </div>
         <div class="field">
           <label>Signer Name</label>
-          <input id="signerInput" type="text" placeholder="Gauri Shankar Jeengar">
+          <input id="signerInput" type="text" placeholder="Auto-detected from PDF certificate">
         </div>
         <div class="field">
           <label>Designation / Title</label>
-          <input id="designationInput" type="text" placeholder="Senior Electrical Inspector">
+          <input id="designationInput" type="text" placeholder="Auto-detected if in certificate (Optional)">
         </div>
         <div class="field">
           <label>Date & Time</label>
-          <input id="dateInput" type="text" placeholder="2022.08.22 12:10:18 IST">
+          <input id="dateInput" type="text" placeholder="Auto-detected signing time">
         </div>
         <div class="field">
           <label>Reason</label>
-          <input id="reasonInput" type="text" value="Approved">
+          <input id="reasonInput" type="text" placeholder="Approved">
         </div>
         <div class="field">
           <label>Location</label>
-          <input id="locationInput" type="text" value="Rajasthan, India">
+          <input id="locationInput" type="text" placeholder="Auto-detected or optional">
         </div>
         <div class="field">
           <label>Right Mark (✓) Layer & Placement</label>

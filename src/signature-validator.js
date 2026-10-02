@@ -245,11 +245,59 @@ function getSignedBytes(bytes, ranges) {
   return out;
 }
 
+function findSignatureWidgets(pdfDoc) {
+  const pages = pdfDoc.getPages();
+  const widgets = [];
+
+  for (let pIdx = 0; pIdx < pages.length; pIdx++) {
+    const page = pages[pIdx];
+    let annots = null;
+    try {
+      annots = page.node.Annots();
+    } catch {}
+    if (!annots) continue;
+
+    for (let i = 0; i < annots.size(); i++) {
+      try {
+        const ref = annots.get(i);
+        const dict = pdfDoc.context.lookup(ref);
+        if (!dict || !dict.get) continue;
+
+        const subtype = dict.get(PDFName.of("Subtype"))?.toString();
+        const ft = dict.get(PDFName.of("FT"))?.toString();
+
+        if (subtype === "/Widget" && (ft === "/Sig" || dict.has(PDFName.of("V")))) {
+          const rectObj = dict.get(PDFName.of("Rect"));
+          let rect = null;
+          if (rectObj && typeof rectObj.size === "function" && rectObj.size() === 4) {
+            const getNum = idx => {
+              const item = rectObj.get(idx);
+              return typeof item?.asNumber === "function" ? item.asNumber() : parseFloat(item?.toString?.() || 0);
+            };
+            rect = [getNum(0), getNum(1), getNum(2), getNum(3)];
+          }
+          widgets.push({
+            pageIndex: pIdx,
+            pageNumber: pIdx + 1,
+            rect,
+            fieldRef: ref,
+            vRef: dict.get(PDFName.of("V"))
+          });
+        }
+      } catch (e) {
+        console.warn("Annot lookup error:", e);
+      }
+    }
+  }
+  return widgets;
+}
+
 function parsePdfSignatureMetadata(bytes) {
   const text = new TextDecoder("latin1").decode(bytes);
   const sigs = [];
 
-  const byteRangeRegex = /\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g;
+  // Match /ByteRange [ a b c d ] with any spacing or newlines
+  const byteRangeRegex = /\/ByteRange\s*\[\s*(\d+)[\s\r\n]+(\d+)[\s\r\n]+(\d+)[\s\r\n]+(\d+)\s*\]/g;
   let match;
 
   while ((match = byteRangeRegex.exec(text)) !== null) {
@@ -259,16 +307,34 @@ function parsePdfSignatureMetadata(bytes) {
       parseInt(match[3], 10),
       parseInt(match[4], 10)
     ];
-    const matchPos = match.index;
 
-    const searchStart = Math.max(0, matchPos - 6000);
-    const searchEnd = Math.min(text.length, matchPos + 350000);
+    let hex = "";
+
+    // 1. By PDF specification (ISO 32000), the gap between ranges[1] and ranges[2] is the /Contents hex!
+    if (ranges[2] > ranges[1] && ranges[2] <= bytes.length) {
+      const gap = new TextDecoder("latin1").decode(bytes.subarray(ranges[1], ranges[2]));
+      const m = gap.match(/<([0-9A-Fa-f\s\r\n]+)>/);
+      if (m) {
+        hex = m[1].replace(/[\s\r\n]/g, "");
+      } else {
+        hex = gap.replace(/[^0-9A-Fa-f]/g, "");
+      }
+    }
+
+    // 2. Fallback search snippet around matchPos if needed
+    const matchPos = match.index;
+    const searchStart = Math.max(0, matchPos - 60000);
+    const searchEnd = Math.min(text.length, matchPos + 60000);
     const snippet = text.slice(searchStart, searchEnd);
 
-    const contentsMatch = snippet.match(/\/Contents\s*<([0-9A-Fa-f\s\r\n]+)>/);
-    if (!contentsMatch) continue;
+    if (!hex || hex.length < 32) {
+      const contentsMatch = snippet.match(/\/Contents\s*<([0-9A-Fa-f\s\r\n]+)>/);
+      if (contentsMatch) {
+        hex = contentsMatch[1].replace(/[\s\r\n]/g, "");
+      }
+    }
 
-    const hex = contentsMatch[1].replace(/[\s\r\n]/g, "");
+    if (!hex || hex.length < 32) continue; // Not a valid CMS signature payload
 
     let reason = "";
     let location = "";
@@ -305,11 +371,12 @@ function parsePdfSignatureMetadata(bytes) {
       location,
       name,
       dateStr,
-      rect
+      rect,
+      pageNumber: 1
     });
   }
 
-  // Also check general widget annotations in PDF to find signature rect if not in dictionary
+  // Also check general widget annotations in PDF text to find signature rect if not found yet
   if (sigs.length > 0 && !sigs[0].rect) {
     const generalWidgetRegex = /\/Rect\s*\[\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*\][^>]*\/FT\s*\/Sig/g;
     const wMatch = generalWidgetRegex.exec(text);
@@ -386,10 +453,14 @@ function extractCertInfo(cert) {
     }
   }
 
-  const commonName = subjectMap["CN"]?.[0] || subjectMap["O"]?.[0] || "Authorized Signatory";
+  const commonName = subjectMap["CN"]?.[0] || subjectMap["O"]?.[0] || "";
   const org = subjectMap["O"]?.[0] || "";
   const orgUnit = subjectMap["OU"]?.[0] || "";
-  const designation = subjectMap["TITLE"]?.[0] || subjectMap["OU"]?.[0] || "";
+  let designation = subjectMap["TITLE"]?.[0] || "";
+  if (!designation && orgUnit && !/^(DSC|Class \d|Individual|Personal|Client|Signer|Token)/i.test(orgUnit)) {
+    designation = orgUnit;
+  }
+  if (designation === "undefined" || designation === "null") designation = "";
 
   let notBefore = "";
   let notAfter = "";
@@ -477,50 +548,74 @@ async function handleFile(file) {
 }
 
 async function processPdfBytes(bytes, docName) {
-  setProgress(25, "Scanning for digital signatures");
+  setProgress(20, "Scanning PDF for digital signatures...");
+
+  let pdfDoc = null;
+  let signatureWidgets = [];
+  try {
+    pdfDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    signatureWidgets = findSignatureWidgets(pdfDoc);
+  } catch (e) {
+    console.warn("Could not load pdf-lib doc for annot scan:", e);
+  }
+
   const rawSigs = parsePdfSignatureMetadata(bytes);
   currentSignatures = [];
   detectedSignatureRect = null;
+  detectedSignaturePage = 1;
   customCoords = null;
 
+  // CRITICAL: If no cryptographic digital signature exists in the uploaded PDF, DO NOT add dummy data!
   if (rawSigs.length === 0) {
-    setProgress(50, "No cryptographic signatures detected");
-    setResult(
-      "idle",
-      "ℹ",
-      "Signature Field Ready for Verification Stamp"
-    );
+    setProgress(100, "Scan Complete");
+    setResult("invalid", "✕", "No Digital Signature Found in this PDF");
+
     if (details) {
       details.innerHTML = `
-        <div class="detail">
-          <b>Document Analysis</b>
-          <span>इस PDF में Question Mark (?) या unverified signature field को हटाकर official <b>✓ Signature Valid</b> stamp लगाया जाएगा।</span>
-          <span>नीचे दिए गए विवरण जाँचें और सीधे <b>Print Ready Document</b> या <b>Download PDF</b> पर क्लिक करें।</span>
+        <div class="detail" style="border-left: 4px solid #ef4444; background: #ef444412;">
+          <b style="color:#f87171; font-size:15px;">⚠️ कोई डिजिटल हस्ताक्षर (Digital Signature) नहीं मिला</b>
+          <span style="color:#cbd5e1; margin-top:6px; display:block; line-height:1.6;">
+            इस PDF दस्तावेज़ में कोई Cryptographic Digital Signature नहीं मिला है।<br>
+            यह सेवा केवल <b>PDF में मौजूद असली डिजिटल हस्ताक्षर</b> को ही सत्यापित करती है। इसमें कोई डमी (Fake/Dummy) हस्ताक्षर नहीं जोड़ा जाता।
+          </span>
+          <span style="color:#94a3b8; font-size:12px; margin-top:8px; display:block;">
+            💡 <b>सुझाव:</b> कृपया वह मूल PDF अपलोड करें जिस पर डिजिटल हस्ताक्षर (जैसे e-Sign, DSC टोकन, NIC या राजस्थान सरकार का डिजिटल साइन) लगा हुआ हो।
+          </span>
         </div>`;
     }
-    if (signerInput) signerInput.value = "Gauri Shankar Jeengar";
-    if (designationInput) designationInput.value = "Senior Electrical Inspector";
-    if (dateInput) dateInput.value = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST";
-    if (reasonInput) reasonInput.value = "Approved";
-    if (locationInput) locationInput.value = "India";
-    detectedSignatureRect = null;
 
-    setProgress(80, "Generating Ready to Print PDF");
-    await rebuildReadyPdf();
+    // Clear inputs - DO NOT SET DUMMY DATA!
+    if (signerInput) signerInput.value = "";
+    if (designationInput) designationInput.value = "";
+    if (dateInput) dateInput.value = "";
+    if (reasonInput) reasonInput.value = "";
+    if (locationInput) locationInput.value = "";
+
+    // Hide Ready to Print controls and preview
+    if (readyControls) readyControls.hidden = true;
+    if (previewCard) previewCard.hidden = true;
     return;
   }
 
-  setProgress(45, "Verifying cryptographic signatures");
+  setProgress(45, "Verifying cryptographic signatures...");
   const reports = [];
   let allCryptoValid = true;
   let allDigestValid = true;
 
   for (let i = 0; i < rawSigs.length; i++) {
     const s = rawSigs[i];
+
+    // Associate widget annot rect and page if available
+    const widget = signatureWidgets[i] || signatureWidgets[0];
+    if (widget) {
+      if (!s.rect && widget.rect) s.rect = widget.rect;
+      s.pageNumber = widget.pageNumber;
+    }
+
     let signedBytes = null;
     let digestValid = false;
     let cryptoValid = false;
-    let certInfo = { signerName: s.name || "Authorized Signatory", organization: "", issuer: "", designation: "" };
+    let certInfo = { signerName: s.name || "", organization: "", issuer: "", designation: "" };
     let signTimeStr = s.dateStr || "";
 
     try {
@@ -565,19 +660,30 @@ async function processPdfBytes(bytes, docName) {
     if (!digestValid) allDigestValid = false;
     if (!cryptoValid) allCryptoValid = false;
 
+    const realSigner = certInfo.signerName || s.name || "Signer";
+    const realDesignation = certInfo.designation || "";
+    const realOrg = certInfo.organization || "";
+    const realIssuer = certInfo.issuer || "Certificate Authority";
+    const realDate = signTimeStr || (s.dateStr ? parsePdfDate(s.dateStr) : "");
+    const realReason = s.reason || "Approved";
+    const realLocation = s.location || "";
+
     if (s.rect && !detectedSignatureRect) {
       detectedSignatureRect = s.rect;
+      detectedSignaturePage = s.pageNumber || 1;
     }
 
     reports.push({
       index: i + 1,
-      signer: certInfo.signerName || s.name || "Authorized Signatory",
-      organization: certInfo.organization || "",
-      designation: certInfo.designation || "",
-      issuer: certInfo.issuer || "Accredited CA / CCA India",
-      dateStr: signTimeStr || new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST",
-      reason: s.reason || "Approved",
-      location: s.location || "India",
+      signer: realSigner,
+      organization: realOrg,
+      designation: realDesignation,
+      issuer: realIssuer,
+      dateStr: realDate,
+      reason: realReason,
+      location: realLocation,
+      rect: s.rect,
+      pageNumber: s.pageNumber || 1,
       digestValid,
       cryptoValid,
       rawSubject: certInfo.rawSubject || ""
@@ -591,13 +697,16 @@ async function processPdfBytes(bytes, docName) {
   if (designationInput) designationInput.value = primarySig.designation || "";
   if (dateInput) dateInput.value = primarySig.dateStr;
   if (reasonInput) reasonInput.value = primarySig.reason || "Approved";
-  if (locationInput) locationInput.value = primarySig.location || "India";
+  if (locationInput) locationInput.value = primarySig.location || "";
+
+  detectedSignatureRect = primarySig.rect;
+  detectedSignaturePage = primarySig.pageNumber || 1;
 
   const isSuccess = allDigestValid || allCryptoValid;
   setResult(
     isSuccess ? "valid" : "invalid",
     isSuccess ? "✓" : "!",
-    isSuccess ? "Digital Signature Valid — Ready to Print PDF Generated" : "Digital Signature Verification Notice"
+    isSuccess ? `Digital Signature Valid — Ready to Print (${reports.length} Signature${reports.length > 1 ? "s" : ""})` : "Digital Signature Verification Notice"
   );
 
   lastReport = {
@@ -613,12 +722,13 @@ async function processPdfBytes(bytes, docName) {
         r => `
       <div class="detail">
         <b>Signature #${r.index}: ${esc(r.signer)}</b>
-        <span><b>Signer Organization:</b> ${esc(r.organization || "Govt of Rajasthan / NIC / UIDAI / India")}</span>
+        ${r.organization ? `<span><b>Signer Organization:</b> ${esc(r.organization)}</span>` : ""}
         ${r.designation ? `<span><b>Designation:</b> ${esc(r.designation)}</span>` : ""}
         <span><b>Certificate Authority:</b> ${esc(r.issuer)}</span>
         <span><b>Signing Time:</b> ${esc(r.dateStr)}</span>
+        <span><b>Signature Page:</b> Page ${r.pageNumber}</span>
         <span><b>Cryptographic Integrity:</b> ${r.digestValid ? "✓ Document intact (ByteRange hash passed)" : "✕ Modified or corrupted"}</span>
-        <span><b>Adobe Acrobat / Foxit Status:</b> ✓ Signature Valid</span>
+        <span><b>Status:</b> ✓ Validated from original PDF</span>
       </div>`
       )
       .join("");
