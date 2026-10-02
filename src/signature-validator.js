@@ -540,7 +540,7 @@ async function handleFile(file) {
     console.error(err);
     setResult("invalid", "!", "PDF Processing Error");
     if (details) {
-      details.innerHTML = `<div class="detail"><span style="color:#f87171">${esc(err.message || "Failed to process PDF file.")}</span></div>`;
+      details.innerHTML = `<div class="detail"><span style="color:#dc2626; font-weight:600;">${esc(err.message || "Failed to process PDF file.")}</span></div>`;
     }
   } finally {
     setBusy(false);
@@ -572,13 +572,13 @@ async function processPdfBytes(bytes, docName) {
 
     if (details) {
       details.innerHTML = `
-        <div class="detail" style="border-left: 4px solid #ef4444; background: #ef444412;">
-          <b style="color:#f87171; font-size:15px;">⚠️ कोई डिजिटल हस्ताक्षर (Digital Signature) नहीं मिला</b>
-          <span style="color:#cbd5e1; margin-top:6px; display:block; line-height:1.6;">
+        <div class="detail" style="border-left: 4px solid #ef4444; background: #fef2f2; border: 1px solid #fecaca;">
+          <b style="color:#b91c1c; font-size:15px;">⚠️ कोई डिजिटल हस्ताक्षर (Digital Signature) नहीं मिला</b>
+          <span style="color:#334155; margin-top:6px; display:block; line-height:1.6;">
             इस PDF दस्तावेज़ में कोई Cryptographic Digital Signature नहीं मिला है।<br>
             यह सेवा केवल <b>PDF में मौजूद असली डिजिटल हस्ताक्षर</b> को ही सत्यापित करती है। इसमें कोई डमी (Fake/Dummy) हस्ताक्षर नहीं जोड़ा जाता।
           </span>
-          <span style="color:#94a3b8; font-size:12px; margin-top:8px; display:block;">
+          <span style="color:#64748b; font-size:12px; margin-top:8px; display:block;">
             💡 <b>सुझाव:</b> कृपया वह मूल PDF अपलोड करें जिस पर डिजिटल हस्ताक्षर (जैसे e-Sign, DSC टोकन, NIC या राजस्थान सरकार का डिजिटल साइन) लगा हुआ हो।
           </span>
         </div>`;
