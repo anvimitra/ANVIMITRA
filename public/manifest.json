@@ -1,0 +1,16 @@
+{
+  "name": "ANVI Easy Crop — PVC Card Studio",
+  "short_name": "Easy Crop",
+  "description": "Auto PVC Card Cropping & Epson L8050 Card Tray Studio",
+  "start_url": "/easy-crop.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
