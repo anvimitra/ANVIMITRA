@@ -614,10 +614,10 @@ body {
           <div class="field">
             <label>Color Aadhaar Template Theme</label>
             <select id="themeSelect">
-              <option value="tricolor" selected>🇮🇳 Official Tricolor Wave (राष्ट्रीय तिरंगा - सबसे सुंदर)</option>
+              <option value="official-hd" selected>🇮🇳 Ultra HD Color Aadhaar Template (ikprinthub Official HD - 100% असली जैसा)</option>
+              <option value="tricolor">🇮🇳 Official Tricolor Wave (Vector Engine)</option>
               <option value="royal-blue">🔷 Royal Navy & White (क्लासिक गवर्नमेंट ब्लू)</option>
               <option value="gold-green">✨ Premium Gold & Emerald (प्रीमियम बॉर्डर)</option>
-              <option value="direct-enhanced">🔍 Direct HD Crop with Color Vibrance (ओरिजिनल कार्ड)</option>
             </select>
           </div>
 
@@ -659,10 +659,23 @@ body {
 
         <!-- Editable Metadata Form -->
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:16px; padding:18px; margin-bottom:20px;">
-          <div style="font-weight:800; font-size:14px; margin-bottom:12px; color:#0f172a;">
-            📝 Extracted Cardholder Details (आवश्यकतानुसार एडिट करें):
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <div style="font-weight:800; font-size:14px; color:#0f172a;">
+              📝 Auto-Extracted Details (आवश्यकतानुसार एडिट करें):
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <label class="btn-secondary" style="font-size:12px; padding:6px 12px; cursor:pointer;">
+                📷 Replace Photo <input id="customPhotoInput" type="file" accept="image/*" hidden>
+              </label>
+              <label class="btn-secondary" style="font-size:12px; padding:6px 12px; cursor:pointer;">
+                🔲 Replace QR <input id="customQrInput" type="file" accept="image/*" hidden>
+              </label>
+              <button id="reExtractBtn" class="btn-secondary" style="font-size:12px; padding:6px 12px;">
+                🔄 Re-Extract Data
+              </button>
+            </div>
           </div>
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px;">
             <div class="field">
               <label>Name (English)</label>
               <input id="inputNameEn" type="text" placeholder="e.g. ANITA SHARMA">
@@ -680,12 +693,32 @@ body {
               <input id="inputGender" type="text" placeholder="e.g. महिला / Female">
             </div>
             <div class="field">
+              <label>Mobile Number (मोबाइल)</label>
+              <input id="inputMobile" type="text" placeholder="e.g. 9876543210">
+            </div>
+            <div class="field">
               <label>Aadhaar Number (12 Digit)</label>
               <input id="inputAadhaarNo" type="text" placeholder="e.g. 1234 5678 9012">
             </div>
+            <div class="field">
+              <label>Virtual ID (VID - 16 Digit)</label>
+              <input id="inputVidNo" type="text" placeholder="e.g. VID : 9123 4567 8901 2345">
+            </div>
+            <div class="field">
+              <label>Issue Date (जारी दिनांक)</label>
+              <input id="inputIssueDate" type="text" placeholder="e.g. Issue Date : 15/08/2021">
+            </div>
+            <div class="field">
+              <label>Details As On (दिनांक)</label>
+              <input id="inputDetailsAsOn" type="text" placeholder="e.g. Details as on : 15/08/2021">
+            </div>
             <div class="field" style="grid-column:1/-1;">
-              <label>Address (पता - Back Side)</label>
-              <input id="inputAddress" type="text" placeholder="e.g. S/O, W/O, D/O: Village, Post, District, State - PIN">
+              <label>Address Hindi / Regional (पता - हिंदी / क्षेत्रीय भाषा)</label>
+              <input id="inputAddressHi" type="text" placeholder="e.g. पता: आत्मज/पत्नी ..., मकान नं. ..., ग्राम ..., जिला ...">
+            </div>
+            <div class="field" style="grid-column:1/-1;">
+              <label>Address English (पता - English Back Side)</label>
+              <input id="inputAddressEn" type="text" placeholder="e.g. Address: S/O, W/O, D/O: House No. ..., Village ..., District ..., State - PIN">
             </div>
           </div>
         </div>
@@ -699,7 +732,7 @@ body {
               <button id="dlFrontBtn" class="btn-secondary" style="padding:4px 10px; font-size:12px;">⬇️ PNG</button>
             </div>
             <div class="canvas-wrapper">
-              <canvas id="frontCanvas" width="2022" height="1276"></canvas>
+              <canvas id="frontCanvas" width="2598" height="1632"></canvas>
             </div>
           </div>
 
@@ -710,7 +743,7 @@ body {
               <button id="dlBackBtn" class="btn-secondary" style="padding:4px 10px; font-size:12px;">⬇️ PNG</button>
             </div>
             <div class="canvas-wrapper">
-              <canvas id="backCanvas" width="2022" height="1276"></canvas>
+              <canvas id="backCanvas" width="2598" height="1632"></canvas>
             </div>
           </div>
         </div>

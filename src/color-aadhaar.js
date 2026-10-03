@@ -1,32 +1,99 @@
 /**
  * ANVIMITRA - Color Aadhaar Instant 2.0 Engine
- * Converts e-Aadhaar PDFs into vibrant HD Color PVC Cards (CR80: 85.6 x 54.0 mm)
- * Supports Direct Epson L8050 Card Tray Printing, A4 Dragon Sheet & 4x6 Photo Paper
+ * Ultra HD PVC Card Maker (CR80: 85.6 × 54.0 mm, 2598 × 1632 Master Canvas)
+ * Auto-detects all text, photo, and square QR from e-Aadhaar PDF
+ * Full Epson L8050/L8100 2-Card PVC Tray Studio & A4 Dragon Sheet
  */
 
-// State
+// =========================================================================
+// GLOBAL STATE & TEMPLATES
+// =========================================================================
+let rawPdfBytes = null;
 let loadedPdfDoc = null;
 let sourcePageCanvas = null;
-let extractedPhotoImg = null;
-let extractedQrImg = null;
-let currentTheme = "tricolor";
-let activeDpi = 600;
 let pendingPasswordResolve = null;
 
-let cardData = {
+let templateFrontImg = new Image();
+let templateBackImg = new Image();
+let templatesLoaded = false;
+templateFrontImg.crossOrigin = "anonymous";
+templateBackImg.crossOrigin = "anonymous";
+
+let extractedPhotoImg = null;
+let extractedQrImg = null;
+let currentTheme = "official-hd"; // "official-hd", "tricolor", "royal-blue", "gold-green"
+let activeDpi = 600;
+
+// Card Data Model
+const cardData = {
   nameEn: "ANITA SHARMA",
   nameHi: "अनिता शर्मा",
   dob: "15/08/1995",
   gender: "महिला / Female",
+  mobile: "",
   aadhaarNo: "XXXX XXXX 1234",
-  addressEn: "W/O Rajesh Sharma, House No. 42, Sanwara, Ward No. 5, Jaipur, Rajasthan - 302001",
-  addressHi: "पत्नी: राजेश शर्मा, मकान नं. 42, सांवरा, वार्ड नं. 5, जयपुर, राजस्थान - 302001"
+  vidNo: "VID : 9123 4567 8901 2345",
+  issueDate: "Issue Date : 15/08/2021",
+  detailsAsOn: "Details as on : 15/08/2021",
+  addressHi: "पता: पत्नी: राजेश शर्मा, मकान नं. 42, सांवरा, वार्ड नं. 5, जयपुर, राजस्थान - 302001",
+  addressEn: "Address: W/O Rajesh Sharma, House No. 42, Sanwara, Ward No. 5, Jaipur, Rajasthan - 302001"
+};
+
+// Canvas Coordinate Placements (% of Native 2598x1632 Template)
+const cardCoords = {
+  photo: { x: 7.8, y: 22.0, w: 21.0, h: 42.0, border: true, brightness: 105, contrast: 110 },
+  ghostPhoto: { enabled: true, x: 86.0, y: 16.0, w: 7.0, h: 14.0, opacity: 80, textY: 31.0, textSize: 30 },
+  frontText: {
+    x: 33.5,
+    nameY: 27.5,
+    nameSize: 66,
+    bodySize: 56,
+    aadhaarY: 78.0,
+    aadhaarSize: 118,
+    vidY: 85.0,
+    vidSize: 56,
+    issueDateX: 3.0,
+    issueDateY: 46.5,
+    issueDateSize: 50,
+    mobileX: 33.5,
+    mobileY: 50.0,
+    mobileSize: 56
+  },
+  backText: {
+    addrX: 7.3,
+    addrRegY: 23.5,
+    addrEnY: 48.0,
+    addrW: 55.0,
+    addrSize: 58,
+    aadhaarY: 78.0,
+    aadhaarSize: 118,
+    vidY: 85.0,
+    vidSize: 56,
+    detailsDateX: 3.0,
+    detailsDateY: 46.0,
+    detailsDateSize: 50
+  },
+  qr: { x: 63.5, y: 22.0, size: 30.0 }
+};
+
+// Standard UIDAI e-Aadhaar Bounding Box Coordinates Preset (% of page 1 width/height)
+const SEGMENT_PRESET_COORDS = {
+  candidate_photo: { page: 1, x: 11.9, y: 76.8, w: 8.3, h: 7.9 },
+  qr_code: { page: 1, x: 76.0, y: 76.4, w: 14.7, h: 11.3 },
+  issue_date: { page: 1, x: 8.9, y: 75.7, w: 2.3, h: 12.3 },
+  aadhaar_no: { page: 1, x: 61.0, y: 87.8, w: 21.9, h: 2.8 },
+  back_address: { page: 1, x: 52.2, y: 75.6, w: 24.3, h: 12.0 },
+  details_as_on: { page: 1, x: 51.1, y: 76.2, w: 1.3, h: 9.9 }
 };
 
 // DOM helper
 const $ = (id) => document.getElementById(id);
 
+// =========================================================================
+// INITIALIZATION
+// =========================================================================
 document.addEventListener("DOMContentLoaded", () => {
+  initTemplates();
   setupTabs();
   setupUpload();
   setupControls();
@@ -35,9 +102,47 @@ document.addEventListener("DOMContentLoaded", () => {
   setupOutputActions();
 });
 
-// -------------------------------------------------------------
-// Tabs Setup
-// -------------------------------------------------------------
+// Load background templates asynchronously with multiple fallback URLs
+function initTemplates() {
+  const sourcesFront = [
+    "./templates/frontadhar.webp",
+    "/templates/frontadhar.webp",
+    "https://www.ikprinthub.in/samples/frontadhar.webp"
+  ];
+  const sourcesBack = [
+    "./templates/backadhar.webp",
+    "/templates/backadhar.webp",
+    "https://www.ikprinthub.in/samples/backadhar.webp"
+  ];
+
+  loadTemplateImage(templateFrontImg, sourcesFront);
+  loadTemplateImage(templateBackImg, sourcesBack);
+}
+
+function loadTemplateImage(imgObj, urls) {
+  let idx = 0;
+  function tryNext() {
+    if (idx >= urls.length) {
+      console.warn("Could not load external template, using vector fallback.");
+      return;
+    }
+    const url = urls[idx++];
+    imgObj.onload = () => {
+      templatesLoaded = true;
+      console.log("Template loaded:", url);
+      renderColorCards();
+    };
+    imgObj.onerror = () => {
+      tryNext();
+    };
+    imgObj.src = url;
+  }
+  tryNext();
+}
+
+// =========================================================================
+// TABS SETUP
+// =========================================================================
 function setupTabs() {
   const tabBtns = document.querySelectorAll(".tab-btn");
   tabBtns.forEach((btn) => {
@@ -61,9 +166,9 @@ function setupTabs() {
   });
 }
 
-// -------------------------------------------------------------
-// Upload & PDF Password Handling
-// -------------------------------------------------------------
+// =========================================================================
+// FILE UPLOAD & PASSWORD HANDLING
+// =========================================================================
 function setupUpload() {
   const dropzone = $("dropzone");
   const fileInput = $("fileInput");
@@ -72,7 +177,7 @@ function setupUpload() {
 
   chooseBtn.addEventListener("click", () => fileInput.click());
   dropzone.addEventListener("click", (e) => {
-    if (e.target !== fileInput && !e.target.closest("button")) {
+    if (e.target !== fileInput && !e.target.closest("button") && !e.target.closest("label")) {
       fileInput.click();
     }
   });
@@ -108,7 +213,7 @@ function setupUpload() {
     loadDemoColorAadhaar();
   });
 
-  // Password Modal
+  // Password Modal Buttons
   $("passwordSubmitBtn").addEventListener("click", () => {
     const pwd = $("pdfPasswordInput").value.trim();
     if (pendingPasswordResolve) {
@@ -118,21 +223,60 @@ function setupUpload() {
     $("passwordModal").classList.remove("active");
   });
 
+  $("pdfPasswordInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      $("passwordSubmitBtn").click();
+    }
+  });
+
   $("passwordCancelBtn").addEventListener("click", () => {
     if (pendingPasswordResolve) {
       pendingPasswordResolve(null);
       pendingPasswordResolve = null;
     }
     $("passwordModal").classList.remove("active");
+    hideLoading();
+  });
+
+  // Custom photo & QR replacements
+  $("customPhotoInput").addEventListener("change", (e) => {
+    if (e.target.files?.length) {
+      const img = new Image();
+      img.onload = () => {
+        extractedPhotoImg = img;
+        renderColorCards();
+      };
+      img.src = URL.createObjectURL(e.target.files[0]);
+    }
+  });
+
+  $("customQrInput").addEventListener("change", (e) => {
+    if (e.target.files?.length) {
+      const img = new Image();
+      img.onload = () => {
+        extractedQrImg = img;
+        renderColorCards();
+      };
+      img.src = URL.createObjectURL(e.target.files[0]);
+    }
+  });
+
+  $("reExtractBtn").addEventListener("click", () => {
+    if (loadedPdfDoc) {
+      processAadhaarDoc(loadedPdfDoc, "e-Aadhaar PDF");
+    } else {
+      alert("कृपया पहले e-Aadhaar PDF फ़ाइल अपलोड करें।");
+    }
   });
 }
 
 async function handleIncomingFile(file) {
-  setStatusBar("Reading e-Aadhaar...", file.name, 25);
+  setStatusBar("Reading e-Aadhaar file...", file.name, 20);
 
   if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
     const buffer = await file.arrayBuffer();
-    await processAadhaarPdf(buffer, file.name);
+    rawPdfBytes = new Uint8Array(buffer);
+    await attemptAutoUnlockAndLoad(file.name);
   } else if (file.type.startsWith("image/")) {
     const img = new Image();
     img.onload = () => {
@@ -140,161 +284,479 @@ async function handleIncomingFile(file) {
     };
     img.src = URL.createObjectURL(file);
   } else {
-    alert("Please upload a valid e-Aadhaar PDF or image file.");
+    alert("कृपया मान्य e-Aadhaar PDF फ़ाइल अपलोड करें।");
+    hideLoading();
   }
 }
 
-async function processAadhaarPdf(buffer, fileName) {
-  setStatusBar("Decrypting PDF...", fileName, 40);
+// Auto password trial from filename candidates
+function extractPasswordCandidatesFromFilename(fileName) {
+  if (!fileName || typeof fileName !== "string") return [];
+  const candidates = [];
+  const baseName = fileName.replace(/\.pdf$/i, "").trim();
 
-  if (!window.pdfjsLib) {
-    alert("PDF library not loaded.");
-    return;
+  // 1. Year match
+  const yearMatch = baseName.match(/(?:^|[^0-9])((?:19|20)\d{2}|\d{4})(?:[^0-9]|$)/);
+  const year = yearMatch ? yearMatch[1] : null;
+
+  // 2. Alpha words
+  const words = baseName.match(/[A-Za-z]+/g) || [];
+  const ignored = new Set(["eaadhaar", "aadhaar", "aadhar", "pdf", "signed", "download", "card", "doc"]);
+
+  if (year) {
+    for (const w of words) {
+      if (ignored.has(w.toLowerCase())) continue;
+      if (w.length >= 4) {
+        const cand = (w.slice(0, 4) + year).toUpperCase();
+        if (!candidates.includes(cand)) candidates.push(cand);
+      }
+    }
   }
 
-  const loadingTask = window.pdfjsLib.getDocument({
-    data: new Uint8Array(buffer),
-    cMapUrl: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/",
-    cMapPacked: true
-  });
+  // 3. Direct 4 letters + 4 digits pattern
+  const directMatches = baseName.match(/[A-Za-z]{4}\d{4}/g);
+  if (directMatches) {
+    directMatches.forEach((m) => {
+      const u = m.toUpperCase();
+      if (!candidates.includes(u)) candidates.push(u);
+    });
+  }
 
-  loadingTask.onPassword = (callback) => {
-    $("passwordModal").classList.add("active");
-    $("pdfPasswordInput").value = "";
-    $("pdfPasswordInput").focus();
-    pendingPasswordResolve = (password) => {
-      callback(password || "");
-    };
-  };
+  // 4. Exact 8 alphanumeric
+  if (baseName.length === 8 && /^[A-Za-z0-9]+$/.test(baseName)) {
+    const u = baseName.toUpperCase();
+    if (!candidates.includes(u)) candidates.push(u);
+  }
 
+  return candidates;
+}
+
+async function attemptAutoUnlockAndLoad(fileName) {
+  if (!rawPdfBytes) return;
+  setStatusBar("Checking PDF security...", fileName, 35);
+
+  const candidates = extractPasswordCandidatesFromFilename(fileName);
+
+  // Try empty password first
   try {
-    const pdf = await loadingTask.promise;
-    setStatusBar("Rendering high-res document...", `${fileName} (${pdf.numPages} pages)`, 65);
-
-    const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 2.5 });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
-    const ctx = canvas.getContext("2d", { alpha: false });
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    sourcePageCanvas = canvas;
-
-    // Extract text details
-    try {
-      const textContent = await page.getTextContent();
-      parseAadhaarText(textContent.items.map((i) => i.str).join("\n"));
-    } catch (e) {
-      console.warn("Text extract error:", e);
-    }
-
-    // Extract Photo and QR Code from standard bottom Aadhaar layout
-    extractCardPartsFromPage(canvas);
-
-    setStatusBar("Color Aadhaar Ready!", `${fileName} (Processed)`, 100);
-    renderColorCards();
+    const testDoc = await window.pdfjsLib.getDocument({
+      data: new Uint8Array(rawPdfBytes),
+      password: ""
+    }).promise;
+    await processAadhaarDoc(testDoc, fileName);
+    return;
   } catch (err) {
-    console.error("PDF error:", err);
-    if (err.name === "PasswordException") {
-      alert("Incorrect password. Aadhaar password is first 4 letters of name in CAPITAL + year of birth (e.g. ANVI1995).");
-    } else {
-      alert("Error reading PDF: " + (err.message || "Failed to parse."));
+    if (err.name !== "PasswordException") {
+      alert("PDF Error: " + (err.message || "Cannot open PDF."));
+      return;
     }
   }
+
+  // Try candidate passwords
+  for (const pwd of candidates) {
+    try {
+      const candDoc = await window.pdfjsLib.getDocument({
+        data: new Uint8Array(rawPdfBytes),
+        password: pwd
+      }).promise;
+      console.log("Unlocked with candidate password:", pwd);
+      await processAadhaarDoc(candDoc, fileName);
+      return;
+    } catch (e) {
+      // Keep trying
+    }
+  }
+
+  // Prompt user for password
+  promptPasswordAndOpen(fileName);
 }
 
-function processAadhaarImage(img, fileName) {
+function promptPasswordAndOpen(fileName) {
+  $("passwordModal").classList.add("active");
+  $("pdfPasswordInput").value = "";
+  $("pdfPasswordInput").focus();
+
+  pendingPasswordResolve = async (password) => {
+    if (!password) {
+      setStatusBar("Password cancelled", fileName, 0);
+      return;
+    }
+
+    setStatusBar("Decrypting e-Aadhaar...", fileName, 45);
+    try {
+      const doc = await window.pdfjsLib.getDocument({
+        data: new Uint8Array(rawPdfBytes),
+        password: password
+      }).promise;
+      await processAadhaarDoc(doc, fileName);
+    } catch (err) {
+      if (err.name === "PasswordException") {
+        alert("गलत पासवर्ड! आधार का पासवर्ड नाम के पहले 4 अक्षर CAPITAL + जन्म वर्ष होता है (उदा. ANVI1995)।");
+        promptPasswordAndOpen(fileName);
+      } else {
+        alert("Error opening PDF: " + (err.message || "Decryption failed"));
+      }
+    }
+  };
+}
+
+// =========================================================================
+// HIGH-PRECISION TEXT PARSER & SPATIAL LINE CLUSTERING
+// =========================================================================
+async function processAadhaarDoc(pdf, fileName) {
+  loadedPdfDoc = pdf;
+  setStatusBar("Analyzing e-Aadhaar Data...", `${fileName} (${pdf.numPages} Page)`, 65);
+
+  // 1. High-precision spatial text extraction
+  await autoExtractTextFromPdfLayer(pdf);
+
+  // 2. High-res page 1 render for Photo & QR crop
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 3.2 }); // Ultra high resolution master
+
   const canvas = document.createElement("canvas");
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(img, 0, 0);
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  const ctx = canvas.getContext("2d", { alpha: false });
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
   sourcePageCanvas = canvas;
 
-  extractCardPartsFromPage(canvas);
-  setStatusBar("Color Aadhaar Ready!", fileName, 100);
+  // 3. Auto-crop Candidate Photo & Square QR Code
+  extractPhotoAndQrFromCanvas(canvas);
+
+  // 4. Update UI Form
+  syncFormInputs();
+
+  // 5. Render cards
+  setStatusBar("Color Aadhaar Ready!", `${fileName} (Processed)`, 100);
   renderColorCards();
 }
 
-function parseAadhaarText(rawText) {
-  // Regex parsing for Aadhaar number
-  const aadhaarMatch = rawText.match(/\b\d{4}\s\d{4}\s\d{4}\b/);
-  if (aadhaarMatch) cardData.aadhaarNo = aadhaarMatch[0];
+function cropCanvasBox(sourceCanvas, box) {
+  if (!sourceCanvas || !box) return null;
+  const sw = sourceCanvas.width;
+  const sh = sourceCanvas.height;
+  const cx = Math.max(0, (box.x / 100) * sw);
+  const cy = Math.max(0, (box.y / 100) * sh);
+  const cw = Math.min(sw - cx, Math.max(10, (box.w / 100) * sw));
+  const ch = Math.min(sh - cy, Math.max(10, (box.h / 100) * sh));
 
-  // DOB match
-  const dobMatch = rawText.match(/(?:DOB|जन्म तारीख|जन्म तिथि)[:\s]+(\d{2}\/\d{2}\/\d{4}|\d{4})/i);
-  if (dobMatch) cardData.dob = dobMatch[1];
+  const outCanvas = document.createElement("canvas");
+  outCanvas.width = Math.round(cw);
+  outCanvas.height = Math.round(ch);
+  const ctx = outCanvas.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(sourceCanvas, cx, cy, cw, ch, 0, 0, outCanvas.width, outCanvas.height);
+  return outCanvas;
+}
 
-  // Gender match
-  if (/महिला|FEMALE/i.test(rawText)) cardData.gender = "महिला / Female";
-  else if (/पुरुष|MALE/i.test(rawText)) cardData.gender = "पुरुष / Male";
-
-  // Name heuristic (look for lines above DOB or near Government of India)
-  const lines = rawText.split("\n").map((l) => l.trim()).filter(Boolean);
-  const dobIdx = lines.findIndex((l) => /DOB|जन्म/i.test(l));
-  if (dobIdx > 0) {
-    cardData.nameEn = lines[dobIdx - 1] || cardData.nameEn;
-    if (dobIdx > 1) cardData.nameHi = lines[dobIdx - 2] || cardData.nameHi;
+function extractPhotoAndQrFromCanvas(pageCanvas) {
+  // Candidate photo crop
+  const photoCanvas = cropCanvasBox(pageCanvas, SEGMENT_PRESET_COORDS.candidate_photo);
+  if (photoCanvas) {
+    const pImg = new Image();
+    pImg.onload = () => {
+      extractedPhotoImg = pImg;
+      renderColorCards();
+    };
+    pImg.src = photoCanvas.toDataURL("image/png");
   }
 
-  // Address heuristic (look for "Address:" or "पता:")
-  const addrIdx = lines.findIndex((l) => /Address|पता/i.test(l));
-  if (addrIdx >= 0) {
-    const addrLines = lines.slice(addrIdx + 1, addrIdx + 6).join(", ");
-    if (addrLines.length > 10) cardData.addressEn = addrLines;
+  // QR Code crop
+  const qrCanvas = cropCanvasBox(pageCanvas, SEGMENT_PRESET_COORDS.qr_code);
+  if (qrCanvas) {
+    const qImg = new Image();
+    qImg.onload = () => {
+      extractedQrImg = qImg;
+      renderColorCards();
+    };
+    qImg.src = qrCanvas.toDataURL("image/png");
   }
+}
 
-  syncFormInputs();
+async function autoExtractTextFromPdfLayer(pdf) {
+  try {
+    let allRawItems = [];
+
+    for (let p = 1; p <= Math.min(pdf.numPages, 2); p++) {
+      const page = await pdf.getPage(p);
+      const viewport = page.getViewport({ scale: 1.0 });
+      const pageWidth = viewport.width || 595.28;
+      const pageHeight = viewport.height || 841.89;
+      const content = await page.getTextContent();
+
+      content.items.forEach((it) => {
+        const str = (it.str || "").trim();
+        if (!str) return;
+        const x = it.transform ? it.transform[4] : 0;
+        const y = it.transform ? it.transform[5] : 0;
+        const pctX = (x / pageWidth) * 100;
+        const pctY = ((pageHeight - y) / pageHeight) * 100; // 0% top, 100% bottom
+
+        allRawItems.push({
+          str,
+          x,
+          y,
+          pctX,
+          pctY,
+          page: p
+        });
+      });
+    }
+
+    // Line clustering by horizontal bands
+    function clusterPdfItemsIntoLines(items) {
+      if (!items || items.length === 0) return [];
+      const valid = items.filter((it) => it && typeof it.str === "string" && it.str.trim().length > 0);
+      if (valid.length === 0) return [];
+
+      const sorted = valid.slice().sort((a, b) => a.pctY - b.pctY);
+      const lineBuckets = [];
+      const Y_THRESHOLD = 0.9;
+
+      sorted.forEach((item) => {
+        let matchedBucket = null;
+        for (const bucket of lineBuckets) {
+          if (Math.abs(item.pctY - bucket.avgY) <= Y_THRESHOLD) {
+            matchedBucket = bucket;
+            break;
+          }
+        }
+        if (matchedBucket) {
+          matchedBucket.items.push(item);
+          matchedBucket.avgY = matchedBucket.items.reduce((sum, it) => sum + it.pctY, 0) / matchedBucket.items.length;
+        } else {
+          lineBuckets.push({ avgY: item.pctY, items: [item] });
+        }
+      });
+
+      lineBuckets.sort((a, b) => a.avgY - b.avgY);
+
+      return lineBuckets
+        .map((b) => {
+          b.items.sort((a, b) => a.pctX - b.pctX);
+          return {
+            pctY: b.avgY,
+            text: b.items
+              .map((it) => it.str.trim())
+              .filter(Boolean)
+              .join(" ")
+          };
+        })
+        .filter((l) => l.text.length > 0);
+    }
+
+    // Spatial partitioning of Page 1
+    const p1Items = allRawItems.filter((it) => it.page === 1);
+    const frontCardItems = p1Items.filter((it) => it.pctY >= 66 && it.pctX < 49);
+    const backAddressItems = p1Items.filter((it) => it.pctY >= 66 && it.pctX >= 50 && it.pctX <= 82);
+    const letterItems = p1Items.filter((it) => it.pctY < 66 && it.pctX < 60);
+
+    const frontLines = clusterPdfItemsIntoLines(frontCardItems).map((l) => l.text);
+    const backLines = clusterPdfItemsIntoLines(backAddressItems).map((l) => l.text);
+    const letterLines = clusterPdfItemsIntoLines(letterItems).map((l) => l.text);
+    const allLines = clusterPdfItemsIntoLines(p1Items).map((l) => l.text);
+
+    const fullText = allLines.join(" \n ");
+
+    // 1. Aadhaar Number (12 digits, strip VID first)
+    const cleanText = fullText.replace(/VID\s*:\s*\d{4}\s*\d{4}\s*\d{4}\s*\d{4}/gi, "");
+    const aadharMatch = cleanText.match(/\b\d{4}\s\d{4}\s\d{4}\b/);
+    if (aadharMatch) {
+      cardData.aadhaarNo = aadharMatch[0];
+    } else {
+      const raw12 = cleanText.match(/\b\d{12}\b/);
+      if (raw12) {
+        cardData.aadhaarNo = raw12[0].replace(/(\d{4})(\d{4})(\d{4})/, "$1 $2 $3");
+      }
+    }
+
+    // 2. VID (16 digits)
+    const vidMatch = fullText.match(/VID\s*:\s*(\d{4}\s\d{4}\s\d{4}\s\d{4})/i);
+    if (vidMatch) cardData.vidNo = `VID : ${vidMatch[1]}`;
+
+    // 3. Issue Date & Details As On Date
+    const issueRegex = /(?:Aadhaar(?:\s*no\.?)?\s*issued|Issue\s*Date|Date\s*of\s*Issue|Download\s*Date|Print\s*Date|\bissued\b)[\s:]*([0-9]{2}[\/-][0-9]{2}[\/-][0-9]{4})/i;
+    let issueMatch = fullText.match(issueRegex);
+    if (!issueMatch && Array.isArray(frontLines)) {
+      for (const line of frontLines) {
+        issueMatch = line.match(issueRegex);
+        if (issueMatch) break;
+      }
+    }
+    if (issueMatch) {
+      const d = issueMatch[1].trim();
+      cardData.issueDate = `Issue Date : ${d}`;
+      cardData.detailsAsOn = `Details as on : ${d}`;
+    }
+
+    const detailsRegex = /(?:Details\s*as\s*on|As\s*on)[\s:]*([0-9]{2}[\/-][0-9]{2}[\/-][0-9]{4})/i;
+    const detailsMatch = fullText.match(detailsRegex);
+    if (detailsMatch) {
+      cardData.detailsAsOn = `Details as on : ${detailsMatch[1].trim()}`;
+    }
+
+    // 4. DOB & Gender
+    let dobIdx = frontLines.findIndex((l) => /(?:DOB|Birth|তারিখ|तिथि|தேதி|తేదీ|ದिनಾಂಕ|जन्म)/i.test(l));
+    if (dobIdx === -1) dobIdx = frontLines.findIndex((l) => /\b(MALE|FEMALE|TRANSGENDER|महिला|पुरुष)\b/i.test(l));
+
+    if (dobIdx !== -1) {
+      const dobLine = frontLines[dobIdx];
+      const dobValMatch = dobLine.match(/([0-9]{2}[\/-][0-9]{2}[\/-][0-9]{4}|[0-9]{4})/);
+      if (dobValMatch) cardData.dob = dobValMatch[1];
+
+      // Gender
+      let genderLine = frontLines.find((l, idx) => idx >= dobIdx && /(?:महिला|पुरुष|MALE|FEMALE|TRANSGENDER)/i.test(l));
+      if (!genderLine) genderLine = fullText.match(/(?:महिला\s*\/\s*FEMALE|पुरुष\s*\/\s*MALE|\bMALE\b|\bFEMALE\b)/i)?.[0];
+      if (genderLine) {
+        if (/महिला|FEMALE/i.test(genderLine)) cardData.gender = "महिला / Female";
+        else if (/पुरुष|MALE/i.test(genderLine)) cardData.gender = "पुरुष / Male";
+        else cardData.gender = genderLine.trim();
+      }
+
+      // Names (strictly lines before dobIdx)
+      const candidateNameLines = frontLines.slice(0, dobIdx).filter((l) => {
+        const t = l.trim();
+        if (!t) return false;
+        if (/Government|India|Authority|UIDAI|Unique|भारत|सरकार|प्राधिकरण|Enrollment|www\.|help@|Address|Issue|Mera Aadhaar|Meri Pehchan/i.test(t)) return false;
+        if (/^\d+$/.test(t.replace(/\s+/g, ""))) return false;
+        return true;
+      });
+
+      if (candidateNameLines.length >= 2) {
+        const candReg = candidateNameLines[candidateNameLines.length - 2].trim();
+        const candEn = candidateNameLines[candidateNameLines.length - 1].toUpperCase().trim();
+        if (/[\u0900-\u0D7F]/.test(candReg)) cardData.nameHi = candReg;
+        cardData.nameEn = candEn;
+      } else if (candidateNameLines.length === 1) {
+        const single = candidateNameLines[0].trim();
+        if (/[A-Za-z]/.test(single)) cardData.nameEn = single.toUpperCase();
+        else if (/[\u0900-\u0D7F]/.test(single)) cardData.nameHi = single;
+      }
+    }
+
+    // Fallback: Check Letter Section for To <Name>
+    const toIdx = letterLines.findIndex((l) => /^To\b/i.test(l.trim()));
+    if (toIdx !== -1 && toIdx < letterLines.length - 1) {
+      for (let i = toIdx + 1; i < Math.min(toIdx + 4, letterLines.length); i++) {
+        const cand = letterLines[i].trim();
+        if (!cand || /^(?:C\/O|S\/O|W\/O|D\/O|House|Vill|PO|Pin|\d)/i.test(cand)) break;
+        if (/[A-Za-z]/.test(cand) && !/Government|India|Authority|UIDAI/i.test(cand)) {
+          if (!cardData.nameEn) cardData.nameEn = cand.toUpperCase();
+        } else if (/[\u0900-\u0D7F]/.test(cand)) {
+          if (!cardData.nameHi) cardData.nameHi = cand;
+        }
+      }
+    }
+
+    // 5. Back Card Address
+    let addrRegParts = [];
+    let addrEnParts = [];
+    let inAddrReg = false;
+    let inAddrEn = false;
+
+    const regStartRegex = /(?:पता\s*[:\uff1a]?|ঠিকানা|સરનામું|मुखவரி|చిరునామా|വിಳಾಸ)/i;
+    const enStartRegex = /(?:Address\s*[:\uff1a]?|C\/O\s*[:\uff1a]?|S\/O\s*[:\uff1a]?|W\/O\s*[:\uff1a]?|D\/O\s*[:\uff1a]?|Care of|Son of|Wife of|Daughter of)/i;
+    const stopRegex = /\b\d{4}\s\d{4}\s\d{4}\b|VID\s*[:\uff1a]|www\.uidai|1947|help@uidai/i;
+
+    backLines.forEach((line) => {
+      let trimmed = line.trim();
+      if (!trimmed) return;
+      if (/Unique Identification Authority|भारतीय विशिष्ट पहचान|Government of India|भारत सरकार/i.test(trimmed)) return;
+      trimmed = trimmed.replace(/Details as on\s*[:\uff1a]?\s*[0-9\/-]+/gi, "").trim();
+      if (!trimmed) return;
+
+      if (regStartRegex.test(trimmed)) {
+        inAddrReg = true;
+        inAddrEn = false;
+        addrRegParts.push(trimmed);
+      } else if (enStartRegex.test(trimmed) && !/UIDAI|help@|www\./i.test(trimmed)) {
+        inAddrEn = true;
+        inAddrReg = false;
+        addrEnParts.push(trimmed);
+      } else if (inAddrReg) {
+        if (stopRegex.test(trimmed) || enStartRegex.test(trimmed)) {
+          inAddrReg = false;
+          if (enStartRegex.test(trimmed)) {
+            inAddrEn = true;
+            addrEnParts.push(trimmed);
+          }
+        } else {
+          addrRegParts.push(trimmed);
+        }
+      } else if (inAddrEn) {
+        if (stopRegex.test(trimmed)) {
+          inAddrEn = false;
+        } else {
+          addrEnParts.push(trimmed);
+        }
+      }
+    });
+
+    if (addrRegParts.length > 0) {
+      cardData.addressHi = addrRegParts.join(", ");
+    }
+    if (addrEnParts.length > 0) {
+      let fullAddrEn = addrEnParts.join(", ");
+      if (!/^Address/i.test(fullAddrEn)) fullAddrEn = `Address: ${fullAddrEn}`;
+      cardData.addressEn = fullAddrEn;
+    } else if (letterLines.length > 0) {
+      // Fallback: check C/O in letter section
+      let letterAddr = [];
+      let capturing = false;
+      letterLines.forEach((l) => {
+        const t = l.trim();
+        if (/^(?:C\/O|S\/O|W\/O|D\/O|Care of|Son of|Wife of)\b/i.test(t)) capturing = true;
+        if (capturing) {
+          if (stopRegex.test(t) || /(?:Download Date|Issue Date|Mobile)/i.test(t)) capturing = false;
+          else letterAddr.push(t);
+        }
+      });
+      if (letterAddr.length > 0) {
+        cardData.addressEn = `Address: ${letterAddr.join(", ")}`;
+      }
+    }
+
+    // 6. Mobile Number
+    const mobMatch = fullText.match(/(?:Mobile|Phone|मोबाइल)[\s:]*([6-9]\d{9})/i) || fullText.match(/\b([6-9]\d{9})\b/);
+    if (mobMatch) {
+      cardData.mobile = mobMatch[1];
+    }
+  } catch (err) {
+    console.warn("Error extracting PDF text layer:", err);
+  }
 }
 
 function syncFormInputs() {
-  $("inputNameEn").value = cardData.nameEn;
-  $("inputNameHi").value = cardData.nameHi;
-  $("inputDob").value = cardData.dob;
-  $("inputGender").value = cardData.gender;
-  $("inputAadhaarNo").value = cardData.aadhaarNo;
-  $("inputAddress").value = cardData.addressEn;
+  $("inputNameEn").value = cardData.nameEn || "";
+  $("inputNameHi").value = cardData.nameHi || "";
+  $("inputDob").value = cardData.dob || "";
+  $("inputGender").value = cardData.gender || "";
+  $("inputMobile").value = cardData.mobile || "";
+  $("inputAadhaarNo").value = cardData.aadhaarNo || "";
+  $("inputVidNo").value = cardData.vidNo || "";
+  $("inputIssueDate").value = cardData.issueDate || "";
+  $("inputDetailsAsOn").value = cardData.detailsAsOn || "";
+  $("inputAddressHi").value = cardData.addressHi || "";
+  $("inputAddressEn").value = cardData.addressEn || "";
 }
 
-function extractCardPartsFromPage(pageCanvas) {
-  const pw = pageCanvas.width;
-  const ph = pageCanvas.height;
-
-  // Standard bottom card location in UIDAI e-Aadhaar
-  // Front Photo is typically at X: ~9% to 19%, Y: ~72% to 84%
-  const photoCanvas = document.createElement("canvas");
-  const photoW = Math.round(pw * 0.11);
-  const photoH = Math.round(ph * 0.11);
-  photoCanvas.width = photoW;
-  photoCanvas.height = photoH;
-  const pCtx = photoCanvas.getContext("2d");
-  pCtx.drawImage(pageCanvas, pw * 0.09, ph * 0.72, photoW, photoH, 0, 0, photoW, photoH);
-
-  const pImg = new Image();
-  pImg.onload = () => {
-    extractedPhotoImg = pImg;
-    renderColorCards();
-  };
-  pImg.src = photoCanvas.toDataURL("image/png");
-
-  // QR Code is typically on back card right side at X: ~78% to 91%, Y: ~72% to 84%
-  const qrCanvas = document.createElement("canvas");
-  const qrSize = Math.round(pw * 0.13);
-  qrCanvas.width = qrSize;
-  qrCanvas.height = qrSize;
-  const qCtx = qrCanvas.getContext("2d");
-  qCtx.drawImage(pageCanvas, pw * 0.78, ph * 0.72, qrSize, qrSize, 0, 0, qrSize, qrSize);
-
-  const qImg = new Image();
-  qImg.onload = () => {
-    extractedQrImg = qImg;
-    renderColorCards();
-  };
-  qImg.src = qrCanvas.toDataURL("image/png");
+function readInputsToData() {
+  cardData.nameEn = $("inputNameEn").value.trim();
+  cardData.nameHi = $("inputNameHi").value.trim();
+  cardData.dob = $("inputDob").value.trim();
+  cardData.gender = $("inputGender").value.trim();
+  cardData.mobile = $("inputMobile").value.trim();
+  cardData.aadhaarNo = $("inputAadhaarNo").value.trim();
+  cardData.vidNo = $("inputVidNo").value.trim();
+  cardData.issueDate = $("inputIssueDate").value.trim();
+  cardData.detailsAsOn = $("inputDetailsAsOn").value.trim();
+  cardData.addressHi = $("inputAddressHi").value.trim();
+  cardData.addressEn = $("inputAddressEn").value.trim();
 }
 
 function setStatusBar(status, info, pct) {
@@ -305,9 +767,44 @@ function setStatusBar(status, info, pct) {
   $("progressBar").style.width = `${pct}%`;
 }
 
-// -------------------------------------------------------------
-// Live Controls
-// -------------------------------------------------------------
+function hideLoading() {
+  $("statusBar").style.display = "none";
+}
+
+// Demo Data Loader
+function loadDemoColorAadhaar() {
+  cardData.nameEn = "ANITA SHARMA";
+  cardData.nameHi = "अनिता शर्मा";
+  cardData.dob = "15/08/1995";
+  cardData.gender = "महिला / Female";
+  cardData.mobile = "9829012345";
+  cardData.aadhaarNo = "5432 1080 5555";
+  cardData.vidNo = "VID : 9123 4567 8901 2345";
+  cardData.issueDate = "Issue Date : 15/08/2021";
+  cardData.detailsAsOn = "Details as on : 15/08/2021";
+  cardData.addressHi = "पता: पत्नी: राजेश शर्मा, मकान नं. 42, सांवरा, वार्ड नं. 5, जयपुर, राजस्थान - 302001";
+  cardData.addressEn = "Address: W/O Rajesh Sharma, House No. 42, Sanwara, Ward No. 5, Jaipur, Rajasthan - 302001";
+  syncFormInputs();
+  setStatusBar("Demo Color Aadhaar Loaded", "Sample Preview", 100);
+  renderColorCards();
+}
+
+function processAadhaarImage(img, fileName) {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  sourcePageCanvas = canvas;
+
+  extractPhotoAndQrFromCanvas(canvas);
+  setStatusBar("Image Aadhaar Loaded", fileName, 100);
+  renderColorCards();
+}
+
+// =========================================================================
+// CONTROLS SETUP
+// =========================================================================
 function setupControls() {
   ["themeSelect", "dpiSelect", "numStyleSelect", "ghostSelect"].forEach((id) => {
     $(id).addEventListener("change", () => {
@@ -319,395 +816,404 @@ function setupControls() {
 
   $("brightSlider").addEventListener("input", (e) => {
     $("brightVal").textContent = e.target.value;
+    cardCoords.photo.brightness = parseInt(e.target.value, 10);
     renderColorCards();
   });
 
   $("contrastSlider").addEventListener("input", (e) => {
     $("contrastVal").textContent = e.target.value;
+    cardCoords.photo.contrast = parseInt(e.target.value, 10);
     renderColorCards();
   });
 
-  // Metadata form live inputs
-  ["inputNameEn", "inputNameHi", "inputDob", "inputGender", "inputAadhaarNo", "inputAddress"].forEach((id) => {
+  [
+    "inputNameEn",
+    "inputNameHi",
+    "inputDob",
+    "inputGender",
+    "inputMobile",
+    "inputAadhaarNo",
+    "inputVidNo",
+    "inputIssueDate",
+    "inputDetailsAsOn",
+    "inputAddressHi",
+    "inputAddressEn"
+  ].forEach((id) => {
     $(id).addEventListener("input", () => {
-      cardData.nameEn = $("inputNameEn").value;
-      cardData.nameHi = $("inputNameHi").value;
-      cardData.dob = $("inputDob").value;
-      cardData.gender = $("inputGender").value;
-      cardData.aadhaarNo = $("inputAadhaarNo").value;
-      cardData.addressEn = $("inputAddress").value;
+      readInputsToData();
       renderColorCards();
     });
   });
 }
 
-// -------------------------------------------------------------
-// High-Resolution Color Card Rendering (CR80: 85.6 × 54.0 mm)
-// -------------------------------------------------------------
+// =========================================================================
+// ULTRA HD COLOR AADHAAR CARD RENDERING (NATIVE 2598 × 1632)
+// =========================================================================
 function renderColorCards() {
+  readInputsToData();
+
   const fCanvas = $("frontCanvas");
   const bCanvas = $("backCanvas");
+  if (!fCanvas || !bCanvas) return;
 
-  // At 600 DPI: 2022 x 1276 px. At 300 DPI: 1011 x 638 px
-  const W = activeDpi === 600 ? 2022 : 1011;
-  const H = activeDpi === 600 ? 1276 : 638;
+  const W = 2598;
+  const H = 1632;
+  if (fCanvas.width !== W) fCanvas.width = W;
+  if (fCanvas.height !== H) fCanvas.height = H;
+  if (bCanvas.width !== W) bCanvas.width = W;
+  if (bCanvas.height !== H) bCanvas.height = H;
 
-  fCanvas.width = W;
-  fCanvas.height = H;
-  bCanvas.width = W;
-  bCanvas.height = H;
-
-  renderFrontColorCard(fCanvas, W, H);
-  renderBackColorCard(bCanvas, W, H);
+  renderFrontCard(fCanvas, W, H);
+  renderBackCard(bCanvas, W, H);
 
   renderTraySimulation();
   renderSheetSimulation();
 }
 
-function renderFrontColorCard(canvas, W, H) {
+function renderFrontCard(canvas, W, H) {
   const ctx = canvas.getContext("2d");
-  const scale = W / 1011; // base design reference 1011 x 638
+  ctx.clearRect(0, 0, W, H);
 
-  // Base background
-  drawCardBackground(ctx, W, H, "front");
-
-  // Top Header: "भारत सरकार / Government of India"
-  ctx.save();
-  // Saffron header bar
-  ctx.fillStyle = currentTheme === "royal-blue" ? "#1e3a8a" : "#ea580c";
-  ctx.fillRect(0, 0, W, 72 * scale);
-
-  // Ashoka Emblem / Ashoka Lion Vector representation
-  drawAshokaEmblem(ctx, 36 * scale, 36 * scale, 24 * scale);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${24 * scale}px "Noto Sans Devanagari", sans-serif`;
-  ctx.fillText("भारत सरकार", 78 * scale, 32 * scale);
-
-  ctx.font = `bold ${18 * scale}px "Inter", sans-serif`;
-  ctx.fillText("Government of India", 78 * scale, 58 * scale);
-
-  // UIDAI Logo on top right
-  drawUidaiLogo(ctx, W - 60 * scale, 36 * scale, 26 * scale);
-  ctx.restore();
-
-  // Photo Box on left
-  const photoX = 46 * scale;
-  const photoY = 110 * scale;
-  const photoW = 240 * scale;
-  const photoH = 300 * scale;
-
-  ctx.save();
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(photoX - 4, photoY - 4, photoW + 8, photoH + 8);
-  ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 2 * scale;
-  ctx.strokeRect(photoX - 4, photoY - 4, photoW + 8, photoH + 8);
-
-  const bright = $("brightSlider").value;
-  const contrast = $("contrastSlider").value;
-  ctx.filter = `brightness(${bright}%) contrast(${contrast}%)`;
-
-  if (extractedPhotoImg) {
-    ctx.drawImage(extractedPhotoImg, photoX, photoY, photoW, photoH);
+  // 1. Draw Front Background (Template Image or Vector)
+  if (currentTheme === "official-hd" && templatesLoaded && templateFrontImg.complete && templateFrontImg.naturalWidth > 0) {
+    ctx.drawImage(templateFrontImg, 0, 0, W, H);
   } else {
-    // Placeholder silhouette
-    ctx.fillStyle = "#e2e8f0";
-    ctx.fillRect(photoX, photoY, photoW, photoH);
-    ctx.fillStyle = "#64748b";
-    ctx.font = `bold ${22 * scale}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillText("PHOTO", photoX + photoW / 2, photoY + photoH / 2);
+    drawVectorBackground(ctx, W, H, "front");
   }
-  ctx.filter = "none";
+
+  // 2. Candidate Photo (Left)
+  const px = (cardCoords.photo.x / 100) * W;
+  const py = (cardCoords.photo.y / 100) * H;
+  const pw = (cardCoords.photo.w / 100) * W;
+  const ph = (cardCoords.photo.h / 100) * H;
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.filter = `brightness(${cardCoords.photo.brightness}%) contrast(${cardCoords.photo.contrast}%)`;
+
+  if (extractedPhotoImg && extractedPhotoImg.complete && extractedPhotoImg.naturalWidth > 0) {
+    ctx.drawImage(extractedPhotoImg, px, py, pw, ph);
+  } else {
+    // Neutral placeholder
+    ctx.fillStyle = "#e2e8f0";
+    ctx.fillRect(px, py, pw, ph);
+    ctx.fillStyle = "#64748b";
+    ctx.font = `bold 44px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText("PHOTO", px + pw / 2, py + ph / 2);
+  }
+
+  if (cardCoords.photo.border) {
+    ctx.strokeStyle = "#111111";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(px, py, pw, ph);
+  }
   ctx.restore();
 
-  // Ghost miniature photo (Top Right)
+  // 3. Ghost / Miniature Photo (Top Right)
   if ($("ghostSelect").value === "yes" && extractedPhotoImg) {
-    const gx = W - 145 * scale;
-    const gy = 100 * scale;
-    const gw = 105 * scale;
-    const gh = 130 * scale;
+    const gx = (cardCoords.ghostPhoto.x / 100) * W;
+    const gy = (cardCoords.ghostPhoto.y / 100) * H;
+    const gw = (cardCoords.ghostPhoto.w / 100) * W;
+    const gh = (cardCoords.ghostPhoto.h / 100) * H;
 
     ctx.save();
-    ctx.filter = "grayscale(100%) contrast(120%)";
-    ctx.globalAlpha = 0.85;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.filter = "grayscale(100%) contrast(125%) brightness(105%)";
+    ctx.globalAlpha = 0.8;
     ctx.drawImage(extractedPhotoImg, gx, gy, gw, gh);
-    ctx.strokeStyle = "rgba(0,0,0,0.2)";
-    ctx.lineWidth = 1.5 * scale;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.lineWidth = 2;
     ctx.strokeRect(gx, gy, gw, gh);
+    ctx.restore();
+
+    // Micro Aadhaar Number below Ghost
+    if (cardData.aadhaarNo) {
+      ctx.save();
+      ctx.fillStyle = "#0f172a";
+      ctx.font = `700 ${cardCoords.ghostPhoto.textSize}px "Lato", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText(cardData.aadhaarNo, gx + gw / 2, (cardCoords.ghostPhoto.textY / 100) * H);
+      ctx.restore();
+    }
+  }
+
+  // 4. Front Text (Regional Name, English Name, DOB, Gender, Mobile)
+  ctx.save();
+  ctx.fillStyle = "#0f172a";
+  ctx.textBaseline = "top";
+
+  const tx = (cardCoords.frontText.x / 100) * W;
+  let curY = (cardCoords.frontText.nameY / 100) * H;
+
+  // Name (Regional / Hindi)
+  if (cardData.nameHi) {
+    ctx.font = `700 ${cardCoords.frontText.nameSize}px "Noto Sans Devanagari", sans-serif`;
+    ctx.fillText(cardData.nameHi, tx, curY);
+    curY += cardCoords.frontText.nameSize + 14;
+  }
+
+  // Name (English - UPPERCASE)
+  if (cardData.nameEn) {
+    ctx.font = `700 ${cardCoords.frontText.nameSize - 2}px "Lato", "Inter", sans-serif`;
+    ctx.fillText(cardData.nameEn.toUpperCase(), tx, curY);
+    curY += cardCoords.frontText.nameSize + 22;
+  }
+
+  // DOB
+  if (cardData.dob) {
+    let dobStr = cardData.dob.trim();
+    if (!/DOB|जन्म/i.test(dobStr)) {
+      dobStr = `जन्म तिथि / DOB: ${dobStr}`;
+    }
+    ctx.font = `500 ${cardCoords.frontText.bodySize}px "Noto Sans Devanagari", "Lato", sans-serif`;
+    ctx.fillText(dobStr, tx, curY);
+    curY += cardCoords.frontText.bodySize + 18;
+  }
+
+  // Gender
+  if (cardData.gender) {
+    let genStr = cardData.gender.trim();
+    if (!/लिंग|Gender/i.test(genStr)) {
+      genStr = `लिंग / GENDER: ${genStr}`;
+    }
+    ctx.font = `500 ${cardCoords.frontText.bodySize}px "Noto Sans Devanagari", "Lato", sans-serif`;
+    ctx.fillText(genStr, tx, curY);
+    curY += cardCoords.frontText.bodySize + 18;
+  }
+
+  // Mobile
+  if (cardData.mobile) {
+    ctx.font = `400 ${cardCoords.frontText.mobileSize}px "Lato", sans-serif`;
+    let mStr = cardData.mobile.trim();
+    if (!/^Mobile/i.test(mStr)) mStr = `Mobile: ${mStr}`;
+    ctx.fillText(mStr, tx, curY);
+  }
+
+  // Aadhaar Number (Centered Big Bold)
+  if (cardData.aadhaarNo) {
+    const numStyle = $("numStyleSelect").value;
+    let numColor = "#dc2626"; // Default bold red
+    if (numStyle === "bold-navy") numColor = "#1e3a8a";
+    if (numStyle === "bold-black") numColor = "#0f172a";
+
+    ctx.save();
+    ctx.fillStyle = numColor;
+    ctx.font = `700 ${cardCoords.frontText.aadhaarSize}px "Lato", "Poppins", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(cardData.aadhaarNo, W / 2, (cardCoords.frontText.aadhaarY / 100) * H);
     ctx.restore();
   }
 
-  // Cardholder Details (Middle / Right)
-  const textX = 320 * scale;
-  ctx.save();
-  ctx.fillStyle = "#0f172a";
+  // VID Number
+  if (cardData.vidNo) {
+    ctx.save();
+    ctx.fillStyle = "#334155";
+    ctx.font = `600 ${cardCoords.frontText.vidSize}px "Lato", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(cardData.vidNo, W / 2, (cardCoords.frontText.vidY / 100) * H);
+    ctx.restore();
+  }
 
-  // Name (Hindi)
-  ctx.font = `800 ${28 * scale}px "Noto Sans Devanagari", sans-serif`;
-  ctx.fillText(cardData.nameHi || "अनिता शर्मा", textX, 155 * scale);
+  // Front Vertical Issue Date (Left edge)
+  if (cardData.issueDate) {
+    ctx.save();
+    ctx.translate((cardCoords.frontText.issueDateX / 100) * W, (cardCoords.frontText.issueDateY / 100) * H);
+    ctx.rotate(-Math.PI / 2);
+    ctx.font = `600 ${cardCoords.frontText.issueDateSize}px "Lato", sans-serif`;
+    ctx.fillStyle = "#475569";
+    ctx.fillText(cardData.issueDate, 0, 0);
+    ctx.restore();
+  }
 
-  // Name (English)
-  ctx.font = `700 ${24 * scale}px "Inter", sans-serif`;
-  ctx.fillText(cardData.nameEn || "ANITA SHARMA", textX, 195 * scale);
-
-  // DOB
-  ctx.font = `600 ${20 * scale}px "Noto Sans Devanagari", sans-serif`;
-  ctx.fillText(`जन्म तिथि / DOB: ${cardData.dob || "15/08/1995"}`, textX, 245 * scale);
-
-  // Gender
-  ctx.fillText(`लिंग / Gender: ${cardData.gender || "महिला / Female"}`, textX, 285 * scale);
-  ctx.restore();
-
-  // Bold Aadhaar Number Box (Bottom)
-  const numY = 485 * scale;
-  const numStyle = $("numStyleSelect").value;
-  let numColor = "#dc2626";
-  if (numStyle === "bold-navy") numColor = "#1e3a8a";
-  if (numStyle === "bold-black") numColor = "#0f172a";
-
-  ctx.save();
-  ctx.fillStyle = numColor;
-  ctx.font = `900 ${48 * scale}px "Inter", "Poppins", sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText(formatAadhaarDisplay(cardData.aadhaarNo), W / 2, numY);
-
-  // Red separator underline
-  ctx.strokeStyle = numColor;
-  ctx.lineWidth = 3 * scale;
-  ctx.beginPath();
-  ctx.moveTo(W * 0.18, numY + 12 * scale);
-  ctx.lineTo(W * 0.82, numY + 12 * scale);
-  ctx.stroke();
-
-  // Bottom Tagline: "मेरा आधार, मेरी पहचान"
-  ctx.fillStyle = "#1e293b";
-  ctx.font = `700 ${20 * scale}px "Noto Sans Devanagari", sans-serif`;
-  ctx.fillText("मेरा आधार, मेरी पहचान", W / 2, numY + 44 * scale);
   ctx.restore();
 }
 
-function renderBackColorCard(canvas, W, H) {
+function renderBackCard(canvas, W, H) {
   const ctx = canvas.getContext("2d");
-  const scale = W / 1011;
+  ctx.clearRect(0, 0, W, H);
 
-  drawCardBackground(ctx, W, H, "back");
+  // 1. Draw Back Background (Template Image or Vector)
+  if (currentTheme === "official-hd" && templatesLoaded && templateBackImg.complete && templateBackImg.naturalWidth > 0) {
+    ctx.drawImage(templateBackImg, 0, 0, W, H);
+  } else {
+    drawVectorBackground(ctx, W, H, "back");
+  }
 
-  // Top Header: "भारतीय विशिष्ट पहचान प्राधिकरण / UIDAI"
-  ctx.save();
-  ctx.fillStyle = currentTheme === "royal-blue" ? "#1e3a8a" : "#ea580c";
-  ctx.fillRect(0, 0, W, 72 * scale);
-
-  drawAshokaEmblem(ctx, 36 * scale, 36 * scale, 24 * scale);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${22 * scale}px "Noto Sans Devanagari", sans-serif`;
-  ctx.fillText("भारतीय विशिष्ट पहचान प्राधिकरण", 78 * scale, 32 * scale);
-
-  ctx.font = `bold ${16 * scale}px "Inter", sans-serif`;
-  ctx.fillText("Unique Identification Authority of India", 78 * scale, 58 * scale);
-
-  drawUidaiLogo(ctx, W - 60 * scale, 36 * scale, 26 * scale);
-  ctx.restore();
-
-  // Left Side: Address Details
-  const addrX = 46 * scale;
   ctx.save();
   ctx.fillStyle = "#0f172a";
-  ctx.font = `bold ${22 * scale}px "Noto Sans Devanagari", sans-serif`;
-  ctx.fillText("पता:", addrX, 125 * scale);
+  ctx.textBaseline = "top";
 
-  ctx.font = `600 ${18 * scale}px "Noto Sans Devanagari", sans-serif`;
-  wrapText(ctx, cardData.addressHi || cardData.addressEn, addrX, 160 * scale, 520 * scale, 28 * scale);
+  const bx = (cardCoords.backText.addrX / 100) * W;
+  const maxW = (cardCoords.backText.addrW / 100) * W;
+  let curBackY = (cardCoords.backText.addrRegY / 100) * H;
 
-  ctx.font = `bold ${20 * scale}px "Inter", sans-serif`;
-  ctx.fillText("Address:", addrX, 275 * scale);
+  // 2. Hindi / Regional Address
+  if (cardData.addressHi && cardData.addressHi.trim()) {
+    ctx.font = `400 ${cardCoords.backText.addrSize}px "Noto Sans Devanagari", sans-serif`;
+    curBackY = wrapTextLines(ctx, cardData.addressHi.trim(), bx, curBackY, maxW, cardCoords.backText.addrSize * 1.35);
+    curBackY += 24;
+  }
 
-  ctx.font = `500 ${17 * scale}px "Inter", sans-serif`;
-  wrapText(ctx, cardData.addressEn, addrX, 305 * scale, 520 * scale, 26 * scale);
-  ctx.restore();
+  // 3. English Address
+  if (cardData.addressEn && cardData.addressEn.trim()) {
+    let enAddr = cardData.addressEn.trim();
+    if (!/^(?:Address|पता)/i.test(enAddr)) {
+      enAddr = `Address: ${enAddr}`;
+    }
+    ctx.font = `400 ${cardCoords.backText.addrSize}px "Lato", sans-serif`;
+    wrapTextLines(ctx, enAddr, bx, curBackY, maxW, cardCoords.backText.addrSize * 1.35);
+  }
 
-  // Right Side: Square High-Res QR Code
-  const qrX = W - 360 * scale;
-  const qrY = 110 * scale;
-  const qrSize = 310 * scale;
+  // 4. Square High-Contrast QR Code (Right)
+  const qx = (cardCoords.qr.x / 100) * W;
+  const qy = (cardCoords.qr.y / 100) * H;
+  const qs = (cardCoords.qr.size / 100) * W;
 
   ctx.save();
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(qrX - 6, qrY - 6, qrSize + 12, qrSize + 12);
-  ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 2 * scale;
-  ctx.strokeRect(qrX - 6, qrY - 6, qrSize + 12, qrSize + 12);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
-  if (extractedQrImg) {
-    ctx.drawImage(extractedQrImg, qrX, qrY, qrSize, qrSize);
+  if (extractedQrImg && extractedQrImg.complete && extractedQrImg.naturalWidth > 0) {
+    ctx.drawImage(extractedQrImg, qx, qy, qs, qs);
   } else {
-    // Generate clean QR placeholder
-    drawQrMock(ctx, qrX, qrY, qrSize);
+    drawQrMock(ctx, qx, qy, qs);
   }
   ctx.restore();
 
-  // Back Aadhaar Number strip
-  const numY = 485 * scale;
-  ctx.save();
-  ctx.fillStyle = "#dc2626";
-  ctx.font = `900 ${44 * scale}px "Inter", sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillText(formatAadhaarDisplay(cardData.aadhaarNo), W / 2, numY);
+  // 5. Back Aadhaar Number & VID
+  if (cardData.aadhaarNo) {
+    const numStyle = $("numStyleSelect").value;
+    let numColor = "#dc2626";
+    if (numStyle === "bold-navy") numColor = "#1e3a8a";
+    if (numStyle === "bold-black") numColor = "#0f172a";
 
-  // Bottom Helpline
-  ctx.fillStyle = "#475569";
-  ctx.font = `600 ${17 * scale}px "Inter", sans-serif`;
-  ctx.fillText("📞 1947  |  ✉ help@uidai.gov.in  |  🌐 www.uidai.gov.in", W / 2, numY + 44 * scale);
+    ctx.save();
+    ctx.fillStyle = numColor;
+    ctx.font = `700 ${cardCoords.backText.aadhaarSize}px "Lato", "Poppins", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(cardData.aadhaarNo, W / 2, (cardCoords.backText.aadhaarY / 100) * H);
+    ctx.restore();
+  }
+
+  if (cardData.vidNo) {
+    ctx.save();
+    ctx.fillStyle = "#334155";
+    ctx.font = `600 ${cardCoords.backText.vidSize}px "Lato", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(cardData.vidNo, W / 2, (cardCoords.backText.vidY / 100) * H);
+    ctx.restore();
+  }
+
+  // 6. Back Vertical Details As On Date (Left edge)
+  if (cardData.detailsAsOn) {
+    ctx.save();
+    ctx.translate((cardCoords.backText.detailsDateX / 100) * W, (cardCoords.backText.detailsDateY / 100) * H);
+    ctx.rotate(-Math.PI / 2);
+    ctx.font = `600 ${cardCoords.backText.detailsDateSize}px "Lato", sans-serif`;
+    ctx.fillStyle = "#475569";
+    ctx.fillText(cardData.detailsAsOn, 0, 0);
+    ctx.restore();
+  }
+
   ctx.restore();
 }
 
-function drawCardBackground(ctx, W, H, side) {
+function wrapTextLines(ctx, text, x, y, maxWidth, lineHeight) {
+  if (!text) return y;
+  const paragraphs = String(text).split("\n");
+  let curY = y;
+
+  for (const para of paragraphs) {
+    const words = para.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) continue;
+    let line = "";
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line ? `${line} ${words[n]}` : words[n];
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && line.length > 0) {
+        ctx.fillText(line, x, curY);
+        line = words[n];
+        curY += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    if (line) {
+      ctx.fillText(line, x, curY);
+      curY += lineHeight;
+    }
+  }
+  return curY;
+}
+
+// Fallback dynamic vector artwork
+function drawVectorBackground(ctx, W, H, side) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, W, H);
 
-  if (currentTheme === "tricolor") {
-    // Elegant Tricolor security wave background
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, "rgba(255, 237, 213, 0.45)"); // Soft saffron
-    grad.addColorStop(0.5, "rgba(255, 255, 255, 0.9)");
-    grad.addColorStop(1, "rgba(220, 252, 231, 0.45)"); // Soft green
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-
-    // Subtle curved national ribbons
-    ctx.save();
-    ctx.strokeStyle = "rgba(234, 88, 12, 0.12)";
-    ctx.lineWidth = 32;
-    ctx.beginPath();
-    ctx.arc(W * 0.5, H * 1.2, W * 0.7, 0, Math.PI);
-    ctx.stroke();
-
-    ctx.strokeStyle = "rgba(22, 163, 74, 0.12)";
-    ctx.lineWidth = 32;
-    ctx.beginPath();
-    ctx.arc(W * 0.5, H * -0.2, W * 0.7, 0, Math.PI);
-    ctx.stroke();
-    ctx.restore();
-  } else if (currentTheme === "royal-blue") {
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, "rgba(239, 246, 255, 0.8)");
-    grad.addColorStop(1, "rgba(255, 255, 255, 0.95)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-  } else if (currentTheme === "gold-green") {
-    const grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, "rgba(254, 252, 232, 0.7)");
-    grad.addColorStop(1, "rgba(240, 253, 244, 0.7)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-  }
-
-  // Guilloche watermarked Ashoka Chakra in center
+  // Header band
   ctx.save();
-  ctx.strokeStyle = "rgba(30, 58, 138, 0.05)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(W / 2, H / 2, H * 0.35, 0, Math.PI * 2);
-  ctx.stroke();
-  for (let i = 0; i < 24; i++) {
-    const angle = (i * Math.PI) / 12;
-    ctx.beginPath();
-    ctx.moveTo(W / 2, H / 2);
-    ctx.lineTo(W / 2 + Math.cos(angle) * H * 0.35, H / 2 + Math.sin(angle) * H * 0.35);
-    ctx.stroke();
-  }
+  ctx.fillStyle = currentTheme === "royal-blue" ? "#1e3a8a" : currentTheme === "gold-green" ? "#065f46" : "#ea580c";
+  ctx.fillRect(0, 0, W, 175);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 60px "Noto Sans Devanagari", sans-serif`;
+  ctx.fillText(side === "front" ? "भारत सरकार" : "भारतीय विशिष्ट पहचान प्राधिकरण", 200, 75);
+
+  ctx.font = `600 42px "Lato", sans-serif`;
+  ctx.fillText(side === "front" ? "Government of India" : "Unique Identification Authority of India", 200, 135);
   ctx.restore();
 
-  // Subtle outer border (CR80)
-  ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(0, 0, W, H);
-}
+  // National tricolor soft wave
+  const grad = ctx.createLinearGradient(0, 175, W, H);
+  grad.addColorStop(0, "rgba(255, 237, 213, 0.35)");
+  grad.addColorStop(0.5, "rgba(255, 255, 255, 0.9)");
+  grad.addColorStop(1, "rgba(220, 252, 231, 0.35)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 175, W, H - 175);
 
-function drawAshokaEmblem(ctx, x, y, r) {
+  // Bottom helpline / tagline
   ctx.save();
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.arc(x, y, r * 0.85, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#ea580c";
-  ctx.font = `bold ${r * 0.9}px serif`;
+  ctx.fillStyle = "#475569";
+  ctx.font = `600 42px "Lato", "Noto Sans Devanagari", sans-serif`;
   ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("🏛️", x, y);
-  ctx.restore();
-}
-
-function drawUidaiLogo(ctx, x, y, r) {
-  ctx.save();
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#ea580c";
-  ctx.font = `bold ${r * 0.9}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("☀", x, y);
+  if (side === "front") {
+    ctx.fillText("मेरा आधार, मेरी पहचान", W / 2, H - 75);
+  } else {
+    ctx.fillText("📞 1947  |  ✉ help@uidai.gov.in  |  🌐 www.uidai.gov.in", W / 2, H - 75);
+  }
   ctx.restore();
 }
 
 function drawQrMock(ctx, x, y, size) {
-  ctx.fillStyle = "#000000";
-  ctx.fillRect(x, y, size, size);
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x + 10, y + 10, size - 20, size - 20);
-  ctx.fillStyle = "#000000";
-  // Position markers
-  ctx.fillRect(x + 20, y + 20, 50, 50);
-  ctx.fillRect(x + size - 70, y + 20, 50, 50);
-  ctx.fillRect(x + 20, y + size - 70, 50, 50);
-  ctx.font = "bold 18px sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("QR CODE", x + size / 2, y + size / 2);
+  ctx.fillRect(x, y, size, size);
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 14;
+  // Corner markers
+  const marker = (mx, my) => {
+    ctx.strokeRect(mx, my, 120, 120);
+    ctx.fillRect(mx + 30, my + 30, 60, 60);
+  };
+  marker(x + 20, y + 20);
+  marker(x + size - 140, y + 20);
+  marker(x + 20, y + size - 140);
 }
 
-function formatAadhaarDisplay(no) {
-  const digits = (no || "").replace(/\D/g, "");
-  if (digits.length === 12) {
-    return `${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8, 12)}`;
-  }
-  return no || "XXXX XXXX 1234";
-}
-
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-  const words = (text || "").split(" ");
-  let line = "";
-  let curY = y;
-
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + " ";
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > maxWidth && n > 0) {
-      ctx.fillText(line, x, curY);
-      line = words[n] + " ";
-      curY += lineHeight;
-    } else {
-      line = testLine;
-    }
-  }
-  ctx.fillText(line, x, curY);
-}
-
-// -------------------------------------------------------------
-// Epson L8050 Tray Simulation & Studio
-// -------------------------------------------------------------
+// =========================================================================
+// EPSON L8050 / L8100 2-CARD PVC TRAY STUDIO
+// =========================================================================
 function setupTrayControls() {
   ["trayModeSelect", "trayShiftX", "trayShiftY", "trayGap", "trayFlipBack"].forEach((id) => {
-    $(id)?.addEventListener("change", renderTraySimulation);
-    $(id)?.addEventListener("input", renderTraySimulation);
+    $(id).addEventListener("input", renderTraySimulation);
+    $(id).addEventListener("change", renderTraySimulation);
   });
 
   $("printTrayBtn").addEventListener("click", () => {
-    document.querySelector('[data-tab="epson-tray"]').click();
-    printTrayDirect();
+    document.querySelector(".tab-btn[data-tab='epson-tray']").click();
   });
 
   $("directTrayPrintBtn").addEventListener("click", printTrayDirect);
@@ -717,313 +1223,224 @@ function setupTrayControls() {
 function renderTraySimulation() {
   const canvas = $("trayCanvas");
   if (!canvas) return;
+
+  // Epson ID Tray physical specs: 130 mm × 240 mm at 300 DPI
+  const trayWidthMm = 130;
+  const trayHeightMm = 240;
+  const dpi = 300;
+  const mmToPx = (mm) => Math.round((mm / 25.4) * dpi);
+
+  canvas.width = mmToPx(trayWidthMm);
+  canvas.height = mmToPx(trayHeightMm);
+
   const ctx = canvas.getContext("2d");
-
-  // Epson ID Tray 130 x 240 mm
-  const scale = 3;
-  canvas.width = 130 * scale;
-  canvas.height = 240 * scale;
-
-  ctx.fillStyle = "#1e293b";
+  ctx.fillStyle = "#0f172a";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.strokeStyle = "#475569";
+  // Tray body guide
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
   ctx.lineWidth = 4;
-  ctx.strokeRect(6, 6, canvas.width - 12, canvas.height - 12);
+  ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
 
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "bold 13px Inter, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("▲ INSERT INTO EPSON L8050 / L8100 TRAY ▲", canvas.width / 2, 28);
+  // Card specs: 85.6 mm × 54.0 mm
+  const cardW = mmToPx(85.6);
+  const cardH = mmToPx(54.0);
 
-  const shiftX = (parseFloat($("trayShiftX").value) || 0) * scale;
-  const shiftY = (parseFloat($("trayShiftY").value) || 0) * scale;
-  const gap = (parseFloat($("trayGap").value) || 2.5) * scale;
+  const shiftX = parseFloat($("trayShiftX").value) || 0;
+  const shiftY = parseFloat($("trayShiftY").value) || 0;
   const flipBack = $("trayFlipBack").checked;
 
-  const cardW = 85.60 * scale;
-  const cardH = 54.00 * scale;
-  const cardX = (canvas.width - cardW) / 2 + shiftX;
-  const slot1_Y = 46 * scale + shiftY;
-  const slot2_Y = slot1_Y + cardH + gap;
-
-  // Draw holders
-  drawTrayPocket(ctx, cardX, slot1_Y, cardW, cardH, "SLOT 1 (FRONT)");
-  drawTrayPocket(ctx, cardX, slot2_Y, cardW, cardH, "SLOT 2 (BACK)");
+  const centerX = canvas.width / 2;
+  const slot1Y = mmToPx(38 + shiftY);
+  const slot2Y = mmToPx(138 + shiftY);
+  const cardX = centerX - cardW / 2 + mmToPx(shiftX);
 
   const fCanvas = $("frontCanvas");
   const bCanvas = $("backCanvas");
-  if (!fCanvas.width) return;
 
-  const mode = $("trayModeSelect").value;
-  // Slot 1
-  if (mode === "both" || mode === "two-fronts" || mode === "front-only") {
-    ctx.drawImage(fCanvas, cardX, slot1_Y, cardW, cardH);
-  } else if (mode === "two-backs") {
-    ctx.drawImage(bCanvas, cardX, slot1_Y, cardW, cardH);
-  }
+  // Slot 1 (Front Card)
+  ctx.drawImage(fCanvas, cardX, slot1Y, cardW, cardH);
+  ctx.strokeStyle = "#2563eb";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(cardX, slot1Y, cardW, cardH);
 
-  // Slot 2
-  if (mode === "both") {
-    ctx.save();
-    if (flipBack) {
-      ctx.translate(cardX + cardW / 2, slot2_Y + cardH / 2);
-      ctx.rotate(Math.PI);
-      ctx.drawImage(bCanvas, -cardW / 2, -cardH / 2, cardW, cardH);
-    } else {
-      ctx.drawImage(bCanvas, cardX, slot2_Y, cardW, cardH);
-    }
-    ctx.restore();
-  } else if (mode === "two-fronts") {
-    ctx.drawImage(fCanvas, cardX, slot2_Y, cardW, cardH);
-  } else if (mode === "two-backs") {
-    ctx.drawImage(bCanvas, cardX, slot2_Y, cardW, cardH);
-  }
-}
-
-function drawTrayPocket(ctx, x, y, w, h, label) {
+  // Slot 2 (Back Card)
   ctx.save();
-  ctx.fillStyle = "#0f172a";
-  ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
-  ctx.strokeStyle = "#38bdf8";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
-  ctx.fillStyle = "rgba(255,255,255,0.3)";
-  ctx.font = "bold 13px Inter, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(label, x + w / 2, y + h / 2);
+  if (flipBack) {
+    ctx.translate(cardX + cardW / 2, slot2Y + cardH / 2);
+    ctx.rotate(Math.PI);
+    ctx.drawImage(bCanvas, -cardW / 2, -cardH / 2, cardW, cardH);
+  } else {
+    ctx.drawImage(bCanvas, cardX, slot2Y, cardW, cardH);
+  }
   ctx.restore();
+
+  ctx.strokeStyle = "#10b981";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(cardX, slot2Y, cardW, cardH);
 }
 
 function printTrayDirect() {
-  const canvas = $("trayCanvas");
-  if (!canvas) return;
+  const trayCanvas = $("trayCanvas");
+  if (!trayCanvas) return;
 
+  const dataUrl = trayCanvas.toDataURL("image/png");
   const printContainer = $("printContainer");
-  printContainer.innerHTML = "";
-  const img = document.createElement("img");
-  img.src = canvas.toDataURL("image/png");
-  img.className = "print-page-canvas";
-  printContainer.appendChild(img);
-
+  printContainer.innerHTML = `<img src="${dataUrl}" style="width:130mm; height:240mm; display:block; margin:0 auto;">`;
   window.print();
 }
 
 function downloadTrayPdf() {
-  const canvas = $("trayCanvas");
-  if (!window.jspdf || !canvas) return;
-
+  if (!window.jspdf?.jsPDF) {
+    alert("jsPDF library not available.");
+    return;
+  }
+  const trayCanvas = $("trayCanvas");
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [130, 240] });
-  doc.addImage(canvas.toDataURL("image/jpeg", 0.98), "JPEG", 0, 0, 130, 240, undefined, "FAST");
-  doc.save("ANVI-Color-Aadhaar-Epson-Tray.pdf");
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: [130, 240]
+  });
+
+  const dataUrl = trayCanvas.toDataURL("image/jpeg", 0.98);
+  pdf.addImage(dataUrl, "JPEG", 0, 0, 130, 240);
+  pdf.save(`Epson_L8050_Tray_${(cardData.nameEn || "Aadhaar").replace(/\s+/g, "_")}.pdf`);
 }
 
-// -------------------------------------------------------------
-// Dragon Sheet & 4x6 Photo Paper
-// -------------------------------------------------------------
+// =========================================================================
+// A4 DRAGON SHEET (10 CARDS) & 4×6 PHOTO PAPER
+// =========================================================================
 function setupSheetControls() {
-  ["sheetPaperType", "dragonCutStyle"].forEach((id) => {
-    $(id)?.addEventListener("change", renderSheetSimulation);
+  ["sheetSpacing", "sheetMargins", "showCutMarks"].forEach((id) => {
+    $(id).addEventListener("input", renderSheetSimulation);
   });
 
   $("printDragonBtn").addEventListener("click", () => {
-    document.querySelector('[data-tab="dragon-sheet"]').click();
-    printSheetDirect();
+    document.querySelector(".tab-btn[data-tab='dragon-sheet']").click();
   });
 
-  $("printPhoto46Btn").addEventListener("click", () => {
-    $("sheetPaperType").value = "photo-4x6";
-    document.querySelector('[data-tab="dragon-sheet"]').click();
-    printSheetDirect();
+  $("directSheetPrintBtn").addEventListener("click", () => {
+    const canvas = $("dragonCanvas");
+    if (!canvas) return;
+    const printContainer = $("printContainer");
+    printContainer.innerHTML = `<img src="${canvas.toDataURL("image/png")}" style="width:210mm; height:297mm; display:block; margin:0 auto;">`;
+    window.print();
   });
 
-  $("printDragonDirectBtn").addEventListener("click", printSheetDirect);
-  $("downloadDragonPdfBtn").addEventListener("click", downloadSheetPdf);
+  $("downloadSheetPdfBtn").addEventListener("click", () => {
+    if (!window.jspdf?.jsPDF) return;
+    const canvas = $("dragonCanvas");
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("p", "mm", "a4");
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.98), "JPEG", 0, 0, 210, 297);
+    pdf.save(`Dragon_Sheet_10Cards_${(cardData.nameEn || "Aadhaar").replace(/\s+/g, "_")}.pdf`);
+  });
 }
 
 function renderSheetSimulation() {
   const canvas = $("dragonCanvas");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
 
-  const paperType = $("sheetPaperType").value;
-  const cutStyle = $("dragonCutStyle").value;
+  // A4 at 300 DPI: 2480 × 3508 px
+  canvas.width = 2480;
+  canvas.height = 3508;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 10 Cards layout: 5 rows × 2 cols (Col 1: Front, Col 2: Back)
+  const cardW = Math.round((85.6 / 25.4) * 300); // 1011 px
+  const cardH = Math.round((54.0 / 25.4) * 300); // 638 px
+
+  const startX = Math.round((14 / 25.4) * 300);
+  const gapX = Math.round((10 / 25.4) * 300);
+  const startY = Math.round((14 / 25.4) * 300);
+  const gapY = Math.round((5 / 25.4) * 300);
+
   const fCanvas = $("frontCanvas");
   const bCanvas = $("backCanvas");
-  if (!fCanvas.width) return;
 
-  if (paperType === "photo-4x6") {
-    // 4x6 inch = 101.6 x 152.4 mm (portrait or landscape)
-    // 2 cards side-by-side (1 Front + 1 Back)
-    const scale = 3;
-    canvas.width = Math.round(152.4 * scale);
-    canvas.height = Math.round(101.6 * scale);
+  for (let row = 0; row < 5; row++) {
+    const y = startY + row * (cardH + gapY);
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Front Card (Col 1)
+    const x1 = startX;
+    ctx.drawImage(fCanvas, x1, y, cardW, cardH);
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x1, y, cardW, cardH);
 
-    const cardW = 85.6 * scale;
-    const cardH = 54.0 * scale;
+    // Back Card (Col 2)
+    const x2 = startX + cardW + gapX;
+    ctx.drawImage(bCanvas, x2, y, cardW, cardH);
+    ctx.strokeRect(x2, y, cardW, cardH);
 
-    // Stack or side-by-side
-    const x = (canvas.width - cardW) / 2;
-    const y1 = (canvas.height - (cardH * 2 + 10)) / 2;
-    const y2 = y1 + cardH + 10;
-
-    ctx.drawImage(fCanvas, x, y1, cardW, cardH);
-    ctx.drawImage(bCanvas, x, y2, cardW, cardH);
-
-    if (cutStyle === "corner-ticks") {
-      drawTicks(ctx, x, y1, cardW, cardH);
-      drawTicks(ctx, x, y2, cardW, cardH);
-    }
-  } else {
-    // A4 Sheet: 210 x 297 mm
-    const scale = 2.5;
-    canvas.width = Math.round(210 * scale);
-    canvas.height = Math.round(297 * scale);
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const cardW = 85.6 * scale;
-    const cardH = 54.0 * scale;
-    const marginX = 14 * scale;
-    const marginY = 10 * scale;
-    const colGap = (canvas.width - 2 * marginX - 2 * cardW);
-    const rowGap = (canvas.height - 2 * marginY - 5 * cardH) / 4;
-
-    for (let r = 0; r < 5; r++) {
-      const y = marginY + r * (cardH + rowGap);
-      const x1 = marginX;
-      const x2 = x1 + cardW + colGap;
-
-      ctx.drawImage(fCanvas, x1, y, cardW, cardH);
-      ctx.drawImage(bCanvas, x2, y, cardW, cardH);
-
-      if (cutStyle === "corner-ticks") {
-        drawTicks(ctx, x1, y, cardW, cardH);
-        drawTicks(ctx, x2, y, cardW, cardH);
-      }
+    // Cut mark lines
+    if ($("showCutMarks").checked) {
+      ctx.strokeStyle = "#94a3b8";
+      ctx.setLineDash([8, 8]);
+      ctx.beginPath();
+      ctx.moveTo(x1 - 20, y);
+      ctx.lineTo(x2 + cardW + 20, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
   }
 }
 
-function drawTicks(ctx, x, y, w, h) {
-  ctx.save();
-  ctx.strokeStyle = "#475569";
-  ctx.lineWidth = 1;
-  const t = 12;
-
-  // 4 corners
-  ctx.beginPath();
-  ctx.moveTo(x - t, y); ctx.lineTo(x, y); ctx.lineTo(x, y - t);
-  ctx.moveTo(x + w + t, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y - t);
-  ctx.moveTo(x + w + t, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h + t);
-  ctx.moveTo(x - t, y + h); ctx.lineTo(x, y + h); ctx.lineTo(x, y + h + t);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function printSheetDirect() {
-  const canvas = $("dragonCanvas");
-  if (!canvas) return;
-
-  const printContainer = $("printContainer");
-  printContainer.innerHTML = "";
-  const img = document.createElement("img");
-  img.src = canvas.toDataURL("image/png");
-  img.className = "print-page-canvas";
-  printContainer.appendChild(img);
-
-  window.print();
-}
-
-function downloadSheetPdf() {
-  const canvas = $("dragonCanvas");
-  if (!window.jspdf || !canvas) return;
-
-  const { jsPDF } = window.jspdf;
-  const paperType = $("sheetPaperType").value;
-  const isPhoto46 = paperType === "photo-4x6";
-
-  const doc = new jsPDF({
-    orientation: isPhoto46 ? "landscape" : "portrait",
-    unit: "mm",
-    format: isPhoto46 ? [101.6, 152.4] : "a4"
-  });
-
-  const w = isPhoto46 ? 152.4 : 210;
-  const h = isPhoto46 ? 101.6 : 297;
-  doc.addImage(canvas.toDataURL("image/jpeg", 0.98), "JPEG", 0, 0, w, h, undefined, "FAST");
-  doc.save(`ANVI-Color-Aadhaar-${isPhoto46 ? "4x6-Photo" : "A4-Dragon"}.pdf`);
-}
-
-// -------------------------------------------------------------
-// Output Exports
-// -------------------------------------------------------------
+// =========================================================================
+// OUTPUT ACTIONS (DOWNLOADS & 4x6 PRINT)
+// =========================================================================
 function setupOutputActions() {
   $("dlFrontBtn").addEventListener("click", () => {
-    downloadCanvas($("frontCanvas"), "Color-Aadhaar-Front.png");
+    downloadCanvasPng($("frontCanvas"), `Color_Aadhaar_Front_${(cardData.nameEn || "Card").replace(/\s+/g, "_")}.png`);
   });
 
   $("dlBackBtn").addEventListener("click", () => {
-    downloadCanvas($("backCanvas"), "Color-Aadhaar-Back.png");
+    downloadCanvasPng($("backCanvas"), `Color_Aadhaar_Back_${(cardData.nameEn || "Card").replace(/\s+/g, "_")}.png`);
   });
 
   $("downloadZipPngBtn").addEventListener("click", () => {
-    downloadCanvas($("frontCanvas"), "Color-Aadhaar-Front.png");
-    setTimeout(() => {
-      downloadCanvas($("backCanvas"), "Color-Aadhaar-Back.png");
-    }, 400);
+    $("dlFrontBtn").click();
+    setTimeout(() => $("dlBackBtn").click(), 400);
   });
 
-  $("downloadPdfBtn").addEventListener("click", downloadSheetPdf);
+  $("downloadPdfBtn").addEventListener("click", () => {
+    if (!window.jspdf?.jsPDF) return;
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const fData = $("frontCanvas").toDataURL("image/jpeg", 0.98);
+    const bData = $("backCanvas").toDataURL("image/jpeg", 0.98);
+
+    // Place Front + Back on A4 top center
+    pdf.addImage(fData, "JPEG", 18, 20, 85.6, 54.0);
+    pdf.addImage(bData, "JPEG", 108, 20, 85.6, 54.0);
+    pdf.save(`Color_Aadhaar_CR80_${(cardData.nameEn || "Print").replace(/\s+/g, "_")}.pdf`);
+  });
+
+  $("printPhoto46Btn").addEventListener("click", () => {
+    if (!window.jspdf?.jsPDF) return;
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: [102, 152] // 4×6 inches in mm
+    });
+
+    const fData = $("frontCanvas").toDataURL("image/jpeg", 0.98);
+    const bData = $("backCanvas").toDataURL("image/jpeg", 0.98);
+
+    pdf.addImage(fData, "JPEG", 12, 10, 85.6, 54.0);
+    pdf.addImage(bData, "JPEG", 12, 70, 85.6, 54.0);
+    pdf.save(`Aadhaar_Photo_4x6_${(cardData.nameEn || "Card").replace(/\s+/g, "_")}.pdf`);
+  });
 }
 
-function downloadCanvas(canvas, filename) {
-  const a = document.createElement("a");
-  a.download = filename;
-  a.href = canvas.toDataURL("image/png");
-  a.click();
-}
-
-// -------------------------------------------------------------
-// Demo Generator
-// -------------------------------------------------------------
-function loadDemoColorAadhaar() {
-  cardData = {
-    nameEn: "ANITA SHARMA",
-    nameHi: "अनिता शर्मा",
-    dob: "15/08/1995",
-    gender: "महिला / Female",
-    aadhaarNo: "9876 5432 1098",
-    addressEn: "W/O Rajesh Sharma, Plot No. 12, Gandhi Nagar, Jaipur, Rajasthan - 302015",
-    addressHi: "पत्नी: राजेश शर्मा, प्लॉट नं. 12, गांधी नगर, जयपुर, राजस्थान - 302015"
-  };
-  syncFormInputs();
-
-  // Create demo photo
-  const pCanvas = document.createElement("canvas");
-  pCanvas.width = 300;
-  pCanvas.height = 360;
-  const pCtx = pCanvas.getContext("2d");
-  pCtx.fillStyle = "#e0f2fe";
-  pCtx.fillRect(0, 0, 300, 360);
-  pCtx.fillStyle = "#0284c7";
-  pCtx.beginPath();
-  pCtx.arc(150, 140, 70, 0, Math.PI * 2);
-  pCtx.fill();
-  pCtx.beginPath();
-  pCtx.arc(150, 320, 110, 0, Math.PI);
-  pCtx.fill();
-
-  const pImg = new Image();
-  pImg.onload = () => {
-    extractedPhotoImg = pImg;
-    setStatusBar("Demo Color Aadhaar Ready", "Sample Beneficiary Card", 100);
-    renderColorCards();
-  };
-  pImg.src = pCanvas.toDataURL("image/png");
+function downloadCanvasPng(canvas, fileName) {
+  const link = document.createElement("a");
+  link.download = fileName;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
 }
