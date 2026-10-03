@@ -10,6 +10,7 @@ export default defineConfig({
         pdfCompressor: 'pdf-compressor.html',
         idCardPrint: 'id-card-print.html',
         signatureValidator: 'signature-validator.html',
+        easyCrop: 'easy-crop.html',
       },
     },
   },

@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PVC Card Auto Crop & Ready to Print (Epson L8050 Tray & A4 Dragon Sheet) • ANVI E-Mitra</title>
+<meta name="theme-color" content="#2563eb">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+}
+.bg {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 10% 15%, #e0e7ff 0, transparent 40%),
+    radial-gradient(circle at 90% 12%, #e0f2fe 0, transparent 35%),
+    radial-gradient(circle at 50% 88%, #fce7f3 0, transparent 35%),
+    #f8fafc;
+}
+.wrap {
+  max-width: 1140px;
+  margin: auto;
+  padding: 24px 16px 60px;
+}
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.3px;
+  color: #0f172a;
+}
+.brand-badge {
+  background: linear-gradient(135deg, #2563eb, #0284c7);
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+.back {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: .2s;
+}
+.back:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+/* Hero Section */
+.hero {
+  text-align: center;
+  margin-bottom: 26px;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.08);
+  margin-bottom: 12px;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 10px #16a34a;
+}
+.hero h1 {
+  font-size: clamp(28px, 5vw, 46px);
+  margin: 8px 0 10px;
+  line-height: 1.15;
+  letter-spacing: -1.2px;
+  background: linear-gradient(135deg, #0f172a 30%, #2563eb 70%, #0284c7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hero p {
+  color: #475569;
+  line-height: 1.65;
+  max-width: 760px;
+  margin: 0 auto;
+  font-size: 14.5px;
+}
+
+/* Nav Tabs */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.tab-btn {
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  transition: all .2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.tab-btn.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+}
+
+/* Card Container */
+.card {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.06);
+  margin-bottom: 22px;
+}
+
+/* Dropzone */
+#dropzone {
+  border: 2px dashed #93c5fd;
+  border-radius: 20px;
+  padding: 36px 18px;
+  text-align: center;
+  background: #f8fafc;
+  transition: .25s ease;
+  cursor: pointer;
+}
+#dropzone:hover, #dropzone.drag {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+.upload-icon {
+  font-size: 44px;
+  margin-bottom: 8px;
+}
+.drop-title {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: #0f172a;
+}
+.drop-desc {
+  color: #64748b;
+  font-size: 13px;
+  max-width: 520px;
+  margin: 0 auto 16px;
+  line-height: 1.55;
+}
+.btn-group {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #0284c7);
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  transition: transform .15s, opacity .15s;
+}
+.btn-main:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+}
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334155;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.btn-secondary:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* Status & Processing */
+.status-bar {
+  margin-top: 16px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #2563eb;
+}
+.progress-wrap {
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #2563eb, #06b6d4);
+  transition: width .25s ease;
+}
+
+/* Grid & Control Panel */
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.section-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.grid-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 6px;
+}
+.field input, .field select {
+  width: 100%;
+  height: 42px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.field input:focus, .field select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Visual Editor Box */
+.editor-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 18px;
+}
+@media (max-width: 900px) {
+  .editor-layout { grid-template-columns: 1fr; }
+}
+.preview-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 16px;
+  text-align: center;
+}
+.preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.canvas-holder {
+  background: #e2e8f0;
+  border-radius: 12px;
+  overflow: auto;
+  max-height: 480px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  position: relative;
+}
+.canvas-holder canvas {
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  cursor: crosshair;
+}
+
+/* Rendered Cards Display */
+.cards-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 18px;
+}
+@media (max-width: 700px) {
+  .cards-row { grid-template-columns: 1fr; }
+}
+.card-item {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  text-align: center;
+}
+.card-item-title {
+  font-weight: 800;
+  font-size: 14px;
+  color: #0f172a;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 10px;
+  min-height: 180px;
+}
+.card-canvas-wrap canvas {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+  border: 1px solid #cbd5e1;
+}
+
+/* Action Button Grid */
+.actions-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+.btn-action-green {
+  padding: 13px 22px;
+  border-radius: 12px;
+  border: 0;
+  background: linear-gradient(135deg, #16a34a, #059669);
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);
+  transition: transform .15s, opacity .15s;
+}
+.btn-action-green:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.35);
+}
+.btn-action-blue {
+  padding: 13px 20px;
+  border-radius: 12px;
+  border: 0;
+  background: linear-gradient(135deg, #2563eb, #0284c7);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  transition: transform .15s;
+}
+.btn-action-blue:hover {
+  transform: translateY(-2px);
+}
+.btn-action-white {
+  padding: 13px 18px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: background .15s, border-color .15s;
+}
+.btn-action-white:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* Epson Tray Simulation */
+.tray-box {
+  background: #1e293b;
+  border-radius: 20px;
+  padding: 24px;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  margin-top: 16px;
+}
+.tray-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  padding-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tray-canvas-wrap {
+  background: #0f172a;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+}
+#trayCanvas {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+}
+
+/* Dragon Sheet Preview */
+.dragon-sheet-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 20px;
+  margin-top: 16px;
+}
+.dragon-canvas-wrap {
+  background: #cbd5e1;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+}
+#dragonCanvas {
+  max-width: 100%;
+  height: auto;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  background: #fff;
+}
+
+/* Feature & Download Cards */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.feature-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);
+}
+.feature-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+.feature-card h3 {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  color: #0f172a;
+}
+.feature-card p {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Download Callout Card */
+.download-card {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border: 1px solid #bfdbfe;
+  border-radius: 24px;
+  padding: 28px;
+  margin-top: 28px;
+}
+.download-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+/* Modal for Password Protected PDFs */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+  display: none;
+  place-items: center;
+  padding: 16px;
+}
+.modal-overlay.active {
+  display: grid;
+}
+.modal-card {
+  background: #ffffff;
+  border-radius: 24px;
+  max-width: 460px;
+  width: 100%;
+  padding: 28px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+
+/* Printable Sheet styles */
+#printContainer {
+  display: none;
+}
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #printContainer, #printContainer * {
+    visibility: visible !important;
+  }
+  #printContainer {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .print-page-canvas {
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
+  }
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+
+<div class="wrap">
+  <!-- Header -->
+  <div class="top">
+    <div class="brand">
+      <div class="brand-badge">A</div>
+      <span>ANVI E-Mitra</span>
+    </div>
+    <a class="back" href="./index.html">← All Services</a>
+  </div>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="eyebrow"><span class="dot"></span> Smart ID Auto-Crop & Epson L8050 PVC Studio</div>
+    <h1>Auto PVC Card Cropping & Direct Print</h1>
+    <p>Aadhaar, PAN, Voter, Ayushman व 14+ सरकारी कार्ड्स की PDF को <b>1-Click में ऑटो-क्रॉप</b> करके <b>CR80 PVC साइज़ (85.6 × 54 mm)</b> में बदलें। Epson L8050 / L8100 कार्ड ट्रे और 10-Card A4 ड्रैगन शीट पर प्रिंट के लिए तैयार करें।</p>
+  </section>
+
+  <!-- Navigation Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="crop-studio">✂️ Auto-Crop & Print Studio</button>
+    <button class="tab-btn" data-tab="epson-tray">🖨️ Epson L8050 Tray Studio</button>
+    <button class="tab-btn" data-tab="dragon-sheet">📄 A4 Dragon Sheet (10 Cards)</button>
+    <button class="tab-btn" data-tab="windows-app">💻 Easy Crop 1.6.3 Windows App</button>
+  </div>
+
+  <!-- TAB 1: Auto-Crop & Print Studio -->
+  <div id="tab-crop-studio" class="tab-content">
+    <div class="card">
+      <div id="dropzone">
+        <div class="upload-icon">🪪</div>
+        <div class="drop-title">Upload ID Card Document (PDF / Image)</div>
+        <div class="drop-desc">Aadhaar (पासवर्ड अनलॉक सहित), PAN (NSDL/UTI), Voter, Ayushman, ABHA, Ration, Driving Licence आदि फ़ाइलें यहाँ छोड़ें। फ़ाइल आपके कंप्यूटर पर ही सुरक्षित प्रोसेस होगी।</div>
+        <div class="btn-group">
+          <button id="chooseBtn" class="btn-main">📁 Choose PDF / Image</button>
+          <button id="sampleAadhaarBtn" class="btn-secondary">⚡ Demo Aadhaar</button>
+          <button id="samplePanBtn" class="btn-secondary">⚡ Demo PAN Card</button>
+        </div>
+        <input id="fileInput" type="file" accept="application/pdf,.pdf,image/*,.jpg,.jpeg,.png,.webp" hidden>
+      </div>
+
+      <!-- Processing & Status Bar -->
+      <div id="statusBar" class="status-bar" style="display:none">
+        <div class="status-pill">
+          <span id="statusIcon">⚡</span>
+          <span id="statusText">Ready</span>
+        </div>
+        <div id="docInfoText" style="font-size:13px; color:#64748b; font-weight:600;">No file</div>
+        <div class="progress-wrap"><div id="progressBar" class="progress-bar"></div></div>
+      </div>
+
+      <!-- Controls & Settings Grid -->
+      <div id="controlsSection" style="margin-top:22px; display:none;">
+        <div class="section-head">
+          <div class="section-title">⚙️ Card Profile & Auto-Crop Settings</div>
+          <div style="font-size:13px; color:#2563eb; font-weight:700;">Standard CR80: 85.60 × 54.00 mm (True Ratio)</div>
+        </div>
+
+        <div class="grid-controls">
+          <div class="field">
+            <label>Card Profile</label>
+            <select id="cardProfile">
+              <option value="auto" selected>✨ AUTO (Adaptive Smart Detect)</option>
+              <option value="aadhaar">Aadhaar · Baal Aadhaar (UIDAI)</option>
+              <option value="pan-nsdl">PAN Card (NSDL e-PAN)</option>
+              <option value="pan-uti">PAN Card (UTIITSL Format)</option>
+              <option value="voter">Voter ID (e-EPIC Front & Back)</option>
+              <option value="ayushman">Ayushman Bharat (PM-JAY Golden Card)</option>
+              <option value="abha">ABHA Health Card (National Health Authority)</option>
+              <option value="ration">Ration Card (FOOD / NFSA Department)</option>
+              <option value="eshram">e-Shram Card (Ministry of Labour)</option>
+              <option value="epfo">EPFO / UAN Member Card</option>
+              <option value="apaar">APAAR / ABC ID (Student Credit ID)</option>
+              <option value="dl">Driving Licence / RC (Parivahan)</option>
+              <option value="janaadhaar">Jan Aadhaar (Rajasthan Govt)</option>
+              <option value="custom">Manual / Custom Crop Area</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Output Resolution</label>
+            <select id="dpiSelect">
+              <option value="300" selected>300 DPI — Fast & Standard Quality</option>
+              <option value="600">600 DPI — Ultra Crisp High Resolution</option>
+              <option value="900">900 DPI — Studio Master PVC Resolution</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Border Bleed (White Edge Fix)</label>
+            <select id="bleedSelect">
+              <option value="0">0.0 mm (Exact Cut)</option>
+              <option value="0.75" selected>0.75 mm (Recommended for Epson Tray)</option>
+              <option value="1.5">1.5 mm (Extra Bleed)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Card Border Frame</label>
+            <select id="borderFrameSelect">
+              <option value="none">No Frame (Clean Edge)</option>
+              <option value="thin-black" selected>Thin Cut Border (0.2 mm)</option>
+              <option value="round-corners">Rounded CR80 Corner Guide</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Brightness: <span id="brightVal">100</span>%</label>
+            <input id="brightSlider" type="range" min="60" max="140" value="100">
+          </div>
+
+          <div class="field">
+            <label>Contrast: <span id="contrastVal">100</span>%</label>
+            <input id="contrastSlider" type="range" min="60" max="140" value="100">
+          </div>
+        </div>
+
+        <!-- Buttons for Crop Adjustment -->
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;">
+          <button id="reCropBtn" class="btn-secondary">↺ Re-Apply Auto-Crop</button>
+          <button id="swapBtn" class="btn-secondary">⇄ Swap Front / Back</button>
+          <button id="rotateBtn" class="btn-secondary">↻ Rotate 90°</button>
+          <button id="resetCropBoxesBtn" class="btn-secondary">⛶ Fit Card Boxes</button>
+        </div>
+
+        <!-- Editor Canvas Layout -->
+        <div class="editor-layout">
+          <!-- Left: Original Source with Crop Marks -->
+          <div class="preview-box">
+            <div class="preview-title">
+              <span>📄 Source Page (Drag Green/Blue Box to adjust)</span>
+              <span id="pageNavText" style="font-size:12px; color:#64748b;">Page 1</span>
+            </div>
+            <div class="canvas-holder">
+              <canvas id="sourceCanvas"></canvas>
+            </div>
+            <div style="margin-top:8px; font-size:12px; color:#64748b;">
+              🟢 <b>Green Box:</b> Front Side &nbsp;|&nbsp; 🔵 <b>Blue Box:</b> Back Side
+            </div>
+          </div>
+
+          <!-- Right: Live Separated Front & Back Cards -->
+          <div class="preview-box">
+            <div class="preview-title">
+              <span>🪪 Cut Output (CR80 PVC Size: 85.6 × 54 mm)</span>
+              <span class="status-pill">✓ 100% Scale</span>
+            </div>
+            <div class="cards-row">
+              <div class="card-item">
+                <div class="card-item-title">
+                  <span>Front Side (आगे)</span>
+                  <button id="dlFrontBtn" class="btn-secondary" style="padding:4px 8px; font-size:11px;">⬇️ PNG</button>
+                </div>
+                <div class="card-canvas-wrap">
+                  <canvas id="frontCanvas"></canvas>
+                </div>
+              </div>
+              <div class="card-item">
+                <div class="card-item-title">
+                  <span>Back Side (पीछे)</span>
+                  <button id="dlBackBtn" class="btn-secondary" style="padding:4px 8px; font-size:11px;">⬇️ PNG</button>
+                </div>
+                <div class="card-canvas-wrap">
+                  <canvas id="backCanvas"></canvas>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:12px; font-size:12px; color:#059669; font-weight:700;">
+              ✓ Ayushman व Aadhaar के QR कोड्स को पूर्णतः चौकोर (Square) व स्कैन-योग्य रखा गया है।
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Output Actions -->
+        <div class="actions-bar">
+          <button id="printTrayBtn" class="btn-action-green">🖨️ Print to Epson L8050 Card Tray</button>
+          <button id="printDragonBtn" class="btn-action-blue">📄 Print A4 Dragon Sheet (10 Cards / Sheet)</button>
+          <button id="downloadPdfBtn" class="btn-action-white">⬇️ Download Ready-to-Print PDF</button>
+          <button id="downloadPngZipBtn" class="btn-action-white">📦 Download High-Res PNGs</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: Epson L8050 Tray Studio -->
+  <div id="tab-epson-tray" class="tab-content" style="display:none;">
+    <div class="card">
+      <div class="section-head">
+        <div class="section-title">🖨️ Epson L8050 / L8100 / L18050 / L805 PVC Card Tray Studio</div>
+        <span class="status-pill">TrayLock Dual-Slot Simulation</span>
+      </div>
+      <p style="color:#64748b; font-size:14px; margin-top:0;">
+        Epson L8050 व L8100 प्रिंटर की 2-कार्ड PVC ट्रे के लिए सटीक पोजीशनिंग। बिना किसी एक्स्ट्रा Photoshop या Photo+ सॉफ़्टवेयर के सीधे ट्रे पर सही अलाइनमेंट में प्रिंट निकालें।
+      </p>
+
+      <div class="grid-controls">
+        <div class="field">
+          <label>Tray Print Mode</label>
+          <select id="trayModeSelect">
+            <option value="both" selected>Slot 1: Front & Slot 2: Back (1 Card Front+Back)</option>
+            <option value="two-fronts">Slot 1: Front 1 & Slot 2: Front 2 (2 Fronts together)</option>
+            <option value="two-backs">Slot 1: Back 1 & Slot 2: Back 2 (2 Backs together)</option>
+            <option value="front-only">Slot 1 Only: Front (Single Slot)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Move Card X Offset (Shift mm)</label>
+          <input id="trayShiftX" type="number" step="0.25" min="-10" max="10" value="0.0">
+        </div>
+        <div class="field">
+          <label>Move Card Y Offset (Shift mm)</label>
+          <input id="trayShiftY" type="number" step="0.25" min="-10" max="10" value="0.0">
+        </div>
+        <div class="field">
+          <label>Slot Gap (mm)</label>
+          <input id="trayGap" type="number" step="0.5" min="0" max="20" value="2.5">
+        </div>
+      </div>
+
+      <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer;">
+          <input id="trayFlipBack" type="checkbox" style="width:18px; height:18px; accent-color:#2563eb;">
+          <span>Back prints upside down (पीछे का हिस्सा उल्टा प्रिंट होता हो तो टिक करें)</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; cursor:pointer;">
+          <input id="traySlotReverse" type="checkbox" style="width:18px; height:18px; accent-color:#2563eb;">
+          <span>Slot 1 is on Right Side (ट्रे का स्लॉट 1 दाईं ओर हो)</span>
+        </label>
+      </div>
+
+      <div class="tray-box">
+        <div class="tray-head">
+          <span style="font-weight:800; font-size:15px;">Epson ID Card Tray Simulation (Slot 1 & Slot 2)</span>
+          <span style="font-size:12px; color:#94a3b8;">Exact Tray Dimensions: CR80 85.6 × 54.0 mm</span>
+        </div>
+        <div class="tray-canvas-wrap">
+          <canvas id="trayCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="actions-bar">
+        <button id="directTrayPrintBtn" class="btn-action-green">🖨️ Start Printing Tray Now</button>
+        <button id="downloadTrayPdfBtn" class="btn-action-blue">⬇️ Download Tray PDF Template</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: A4 Dragon Sheet -->
+  <div id="tab-dragon-sheet" class="tab-content" style="display:none;">
+    <div class="card">
+      <div class="section-head">
+        <div class="section-title">📄 Dragon Sheet — A4 पर 10 कार्ड्स कट मार्क्स के साथ</div>
+        <span class="status-pill">100% Actual Scale (Non-Tray Printing)</span>
+      </div>
+      <p style="color:#64748b; font-size:14px; margin-top:0;">
+        अगर आपके पास Epson कार्ड ट्रे नहीं है, तो <b>Dragon Sheet</b> A4 पेपर पर 2 कॉलम × 5 लाइन (10 कार्ड्स) सटीक 85.6 × 54 mm साइज़ में कट मार्क्स (Scissors ✂) के साथ तैयार करता है। इसे फोटो पेपर या PVC सब्लिमेशन शीट पर प्रिंट करके आसानी से काट सकते हैं।
+      </p>
+
+      <div class="grid-controls">
+        <div class="field">
+          <label>Layout Arrangement</label>
+          <select id="dragonLayoutSelect">
+            <option value="front-back-pairs" selected>Front + Back Pairs (5 Cards Complete)</option>
+            <option value="all-fronts">10 Front Cards (Front Only Batch)</option>
+            <option value="all-backs">10 Back Cards (Back Only Batch)</option>
+            <option value="single-set">Single Set (Top of A4 — 1 Front + 1 Back)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Cut Mark Style</label>
+          <select id="dragonCutStyle">
+            <option value="corner-ticks" selected>Corner Crosshairs & Dashed Guides (✂️)</option>
+            <option value="solid-line">Solid Thin Border (0.2 mm)</option>
+            <option value="none">No Cut Marks</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>A4 Top / Bottom Margin (mm)</label>
+          <input id="dragonMarginY" type="number" min="2" max="25" value="10">
+        </div>
+        <div class="field">
+          <label>A4 Left / Right Margin (mm)</label>
+          <input id="dragonMarginX" type="number" min="2" max="25" value="14">
+        </div>
+      </div>
+
+      <div class="dragon-sheet-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <b style="font-size:15px; color:#0f172a;">A4 Sheet Preview (210 × 297 mm)</b>
+          <span style="font-size:13px; color:#2563eb; font-weight:700;">Print Setting: 100% Actual Size (Do not fit to page)</span>
+        </div>
+        <div class="dragon-canvas-wrap">
+          <canvas id="dragonCanvas"></canvas>
+        </div>
+      </div>
+
+      <div class="actions-bar">
+        <button id="printDragonDirectBtn" class="btn-action-green">🖨️ Print A4 Dragon Sheet Now</button>
+        <button id="downloadDragonPdfBtn" class="btn-action-blue">⬇️ Download A4 Dragon Sheet PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: Easy Crop 1.6.3 Windows Desktop App -->
+  <div id="tab-windows-app" class="tab-content" style="display:none;">
+    <div class="card">
+      <div class="download-card">
+        <div class="download-flex">
+          <div>
+            <div style="display:inline-flex; align-items:center; gap:8px; background:#dcfce7; color:#15803d; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700; margin-bottom:10px;">
+              ⭐ Latest Stable Release · 100% Offline
+            </div>
+            <h2 style="margin:0 0 8px; font-size:26px; color:#0f172a;">Easy Crop 1.6.3 for Windows</h2>
+            <p style="margin:0; color:#475569; font-size:14.5px; line-height:1.6; max-width:620px;">
+              साइबर कैफे और CSC सेंटरों के लिए लोकप्रिय डेस्कटॉप टूल। 50+ सरकारी कार्ड प्रोफाइल्स, 900 DPI रेंडरिंग, Epson L8050/L8100 ट्रे को सीधे USB से प्रिंट करने की क्षमता।
+            </p>
+          </div>
+          <div style="text-align:center;">
+            <a href="https://easy-crop-license.mondal741741.workers.dev/updates/releases/Easy-Crop-Tool-1.6.3-Release.zip" class="btn-action-green" style="font-size:16px; padding:15px 28px; text-decoration:none;" target="_blank">
+              ⬇️ Download Easy Crop 1.6.3 (ZIP)
+            </a>
+            <div style="font-size:12px; color:#64748b; margin-top:8px;">Windows 10 & 11 (64-bit) · 30 Days Free Trial</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin:26px 0 14px; font-size:19px; color:#0f172a;">Easy Crop 1.6.3 कैसे इनस्टॉल करें (Step-by-Step Guide)</h3>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px;">
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:#eff6ff; color:#2563eb;">1</div>
+          <h3>ZIP डाउनलोड करें</h3>
+          <p>ऊपर दिए गए बटन से आधिकारिक <code>Easy-Crop-Tool-1.6.3-Release.zip</code> डाउनलोड करें।</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:#eff6ff; color:#2563eb;">2</div>
+          <h3>Extract All करें</h3>
+          <p>ZIP पर राइट क्लिक करके <b>Extract All</b> करें। ZIP के अंदर से सीधे सेटअप न चलाएँ।</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:#eff6ff; color:#2563eb;">3</div>
+          <h3>Run INSTALL File</h3>
+          <p>फ़ोल्डर में <b>INSTALL Easy Crop Tool</b> चलाएँ। "Windows protected your PC" आने पर <b>More info → Run anyway</b> दबाएँ।</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-icon" style="background:#eff6ff; color:#2563eb;">4</div>
+          <h3>रजिस्टर करें और प्रिंट करें</h3>
+          <p>दुकान का नाम और मोबाइल नंबर डालकर 30 दिन का फ्री ट्रायल चालू करें और Epson प्रिंटर पर प्रिंट करें।</p>
+        </div>
+      </div>
+
+      <div style="margin-top:24px; padding:18px; border-radius:16px; background:#eff6ff; border:1px solid #bfdbfe; font-size:13.5px; line-height:1.6; color:#1e40af;">
+        <b>💡 विशेष जानकारी (Windows SmartScreen):</b> Windows बिना खरीदे गए सर्टिफिकेट वाले सॉफ़्टवेयर पर अननोन पब्लिशर की चेतावनी दिखाता है। 'More info' पर क्लिक करके 'Run anyway' करें, सॉफ़्टवेयर 100% सुरक्षित और ऑफ़लाइन है।
+      </div>
+    </div>
+  </div>
+
+  <!-- Feature Highlights -->
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-card-icon" style="background:#eff6ff; color:#2563eb;">⚡</div>
+      <h3>14+ Government Card Profiles</h3>
+      <p>Aadhaar, PAN NSDL/UTI, Voter ID, Ayushman PM-JAY, ABHA, Ration, Driving Licence, e-Shram, EPFO व APAAR कार्ड्स के प्रीसेट बॉर्डर्स।</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-icon" style="background:#f0fdf4; color:#16a34a;">🔒</div>
+      <h3>100% Private & Browser Sandbox</h3>
+      <p>आपकी या कस्टमर की कोई भी PDF या फोटो किसी सर्वर पर अपलोड नहीं होती। पूरा काम आपके ब्राउज़र में ऑफ़लाइन होता है।</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-icon" style="background:#fef3c7; color:#d97706;">🖨️</div>
+      <h3>Epson L8050 Tray Calibration</h3>
+      <p>व्हाइट लाइन हटाने के लिए ब्लीड एडजस्टमेंट, 0.25mm शिफ्टिंग और उल्टे प्रिंट को सही करने के लिए फ्लिप टॉगल।</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-icon" style="background:#f5f3ff; color:#7c3aed;">📐</div>
+      <h3>Dragon Sheet (10 Cards A4)</h3>
+      <p>बिना ट्रे वाले प्रिंटर के लिए एक ही A4 पेज पर 10 कार्ड्स 100% ओरिजिनल साइज़ व कट मार्क्स के साथ प्रिंट करने की सुविधा।</p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Password Protected PDFs -->
+<div id="passwordModal" class="modal-overlay">
+  <div class="modal-card">
+    <div style="font-size:42px; margin-bottom:10px;">🔐</div>
+    <h3 style="margin:0 0 8px; font-size:20px; color:#0f172a;">PDF Password Required</h3>
+    <p style="font-size:13px; color:#64748b; line-height:1.5; margin:0 0 16px;">
+      यह PDF पासवर्ड से सुरक्षित है (जैसे ई-आधार)। कृपया पासवर्ड दर्ज करें।
+    </p>
+    <div style="margin-bottom:14px;">
+      <input id="pdfPasswordInput" type="password" placeholder="e.g. ANVI1995" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:8px 12px; font-size:14px; text-align:center;">
+    </div>
+    <div style="font-size:12px; color:#2563eb; background:#eff6ff; padding:10px; border-radius:8px; margin-bottom:18px; text-align:left;">
+      💡 <b>सुझाव:</b> आधार कार्ड का पासवर्ड नाम के पहले 4 अक्षर CAPITAL में + जन्म वर्ष होता है (जैसे नाम ANITA और जन्म 1995 है तो <code>ANIT1995</code>)।
+    </div>
+    <div style="display:flex; gap:10px; justify-content:center;">
+      <button id="passwordSubmitBtn" class="btn-main">Unlock & Open</button>
+      <button id="passwordCancelBtn" class="btn-secondary">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden print container for clean direct printing -->
+<div id="printContainer"></div>
+
+<script type="module" src="./src/easy-crop.js"></script>
+</body>
+</html>
