@@ -11,6 +11,7 @@ export default defineConfig({
         idCardPrint: 'id-card-print.html',
         signatureValidator: 'signature-validator.html',
         easyCrop: 'easy-crop.html',
+        colorAadhaar: 'color-aadhaar.html',
       },
     },
   },
