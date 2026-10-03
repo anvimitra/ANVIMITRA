@@ -1,7 +1,7 @@
 /**
  * ANVIMITRA - Color Aadhaar Instant 2.0 Engine
  * Ultra HD PVC Card Maker (CR80: 85.6 × 54.0 mm, 2598 × 1632 Master Canvas)
- * Auto-detects all text, photo, and square QR from e-Aadhaar PDF
+ * Auto-detects all text (Hindi & English Name, DOB, Gender, Hindi & English Address, QR, Photo)
  * Full Epson L8050/L8100 2-Card PVC Tray Studio & A4 Dragon Sheet
  */
 
@@ -23,6 +23,7 @@ let extractedPhotoImg = null;
 let extractedQrImg = null;
 let currentTheme = "official-hd"; // "official-hd", "tricolor", "royal-blue", "gold-green"
 let activeDpi = 600;
+let fontScale = 1.15; // Extra Large by default as requested by user
 
 // Card Data Model
 const cardData = {
@@ -31,7 +32,7 @@ const cardData = {
   dob: "15/08/1995",
   gender: "महिला / Female",
   mobile: "",
-  aadhaarNo: "XXXX XXXX 1234",
+  aadhaarNo: "5432 1080 5555",
   vidNo: "VID : 9123 4567 8901 2345",
   issueDate: "Issue Date : 15/08/2021",
   detailsAsOn: "Details as on : 15/08/2021",
@@ -40,38 +41,38 @@ const cardData = {
 };
 
 // Canvas Coordinate Placements (% of Native 2598x1632 Template)
+// All font sizes enlarged significantly for bold, crystal-clear readability
 const cardCoords = {
   photo: { x: 7.8, y: 22.0, w: 21.0, h: 42.0, border: true, brightness: 105, contrast: 110 },
-  ghostPhoto: { enabled: true, x: 86.0, y: 16.0, w: 7.0, h: 14.0, opacity: 80, textY: 31.0, textSize: 30 },
+  ghostPhoto: { enabled: true, x: 86.0, y: 16.0, w: 7.0, h: 14.0, opacity: 80, textY: 31.0, textSize: 32 },
   frontText: {
-    x: 33.5,
-    nameY: 27.5,
-    nameSize: 66,
-    bodySize: 56,
-    aadhaarY: 78.0,
-    aadhaarSize: 118,
-    vidY: 85.0,
-    vidSize: 56,
+    x: 32.5,
+    nameY: 24.5,
+    nameSize: 84,       // Large bold name
+    bodySize: 70,       // Large bold DOB & Gender
+    aadhaarY: 78.5,
+    aadhaarSize: 136,   // Big bold Aadhaar number
+    vidY: 86.5,
+    vidSize: 64,        // Big clear VID
     issueDateX: 3.0,
     issueDateY: 46.5,
-    issueDateSize: 50,
-    mobileX: 33.5,
-    mobileY: 50.0,
-    mobileSize: 56
+    issueDateSize: 54,
+    mobileX: 32.5,
+    mobileY: 53.0,
+    mobileSize: 64
   },
   backText: {
-    addrX: 7.3,
-    addrRegY: 23.5,
-    addrEnY: 48.0,
-    addrW: 55.0,
-    addrSize: 58,
-    aadhaarY: 78.0,
-    aadhaarSize: 118,
-    vidY: 85.0,
-    vidSize: 56,
+    addrX: 7.0,
+    addrRegY: 22.0,
+    addrW: 54.5,
+    addrSize: 72,       // Large bold Address (Hindi & English)
+    aadhaarY: 78.5,
+    aadhaarSize: 136,
+    vidY: 86.5,
+    vidSize: 64,
     detailsDateX: 3.0,
     detailsDateY: 46.0,
-    detailsDateSize: 50
+    detailsDateSize: 54
   },
   qr: { x: 63.5, y: 22.0, size: 30.0 }
 };
@@ -82,7 +83,7 @@ const SEGMENT_PRESET_COORDS = {
   qr_code: { page: 1, x: 76.0, y: 76.4, w: 14.7, h: 11.3 },
   issue_date: { page: 1, x: 8.9, y: 75.7, w: 2.3, h: 12.3 },
   aadhaar_no: { page: 1, x: 61.0, y: 87.8, w: 21.9, h: 2.8 },
-  back_address: { page: 1, x: 52.2, y: 75.6, w: 24.3, h: 12.0 },
+  back_address: { page: 1, x: 49.0, y: 74.0, w: 27.0, h: 14.0 },
   details_as_on: { page: 1, x: 51.1, y: 76.2, w: 1.3, h: 9.9 }
 };
 
@@ -289,7 +290,7 @@ async function handleIncomingFile(file) {
   }
 }
 
-// Auto password trial from filename candidates
+// Auto password candidates extraction from filename
 function extractPasswordCandidatesFromFilename(fileName) {
   if (!fileName || typeof fileName !== "string") return [];
   const candidates = [];
@@ -508,7 +509,7 @@ async function autoExtractTextFromPdfLayer(pdf) {
       });
     }
 
-    // Line clustering by horizontal bands
+    // Line clustering algorithm by horizontal bands
     function clusterPdfItemsIntoLines(items) {
       if (!items || items.length === 0) return [];
       const valid = items.filter((it) => it && typeof it.str === "string" && it.str.trim().length > 0);
@@ -550,11 +551,12 @@ async function autoExtractTextFromPdfLayer(pdf) {
         .filter((l) => l.text.length > 0);
     }
 
-    // Spatial partitioning of Page 1
+    // Spatial partitioning of Page 1 with generous bounding boxes
     const p1Items = allRawItems.filter((it) => it.page === 1);
-    const frontCardItems = p1Items.filter((it) => it.pctY >= 66 && it.pctX < 49);
-    const backAddressItems = p1Items.filter((it) => it.pctY >= 66 && it.pctX >= 50 && it.pctX <= 82);
-    const letterItems = p1Items.filter((it) => it.pctY < 66 && it.pctX < 60);
+    const frontCardItems = p1Items.filter((it) => it.pctY >= 64 && it.pctX < 49);
+    // Back card address box: expanded Y to 60-92% and X to 47-84% to never miss Hindi lines
+    const backAddressItems = p1Items.filter((it) => it.pctY >= 60 && it.pctX >= 47 && it.pctX <= 84);
+    const letterItems = p1Items.filter((it) => it.pctY < 64 && it.pctX < 60);
 
     const frontLines = clusterPdfItemsIntoLines(frontCardItems).map((l) => l.text);
     const backLines = clusterPdfItemsIntoLines(backAddressItems).map((l) => l.text);
@@ -601,7 +603,7 @@ async function autoExtractTextFromPdfLayer(pdf) {
     }
 
     // 4. DOB & Gender
-    let dobIdx = frontLines.findIndex((l) => /(?:DOB|Birth|তারিখ|तिथि|தேதி|తేదీ|ದिनಾಂಕ|जन्म)/i.test(l));
+    let dobIdx = frontLines.findIndex((l) => /(?:DOB|Birth|তারিখ|तिथि|தேதி|తేదీ|ದಿನಾಂಕ|जन्म)/i.test(l));
     if (dobIdx === -1) dobIdx = frontLines.findIndex((l) => /\b(MALE|FEMALE|TRANSGENDER|महिला|पुरुष)\b/i.test(l));
 
     if (dobIdx !== -1) {
@@ -639,7 +641,7 @@ async function autoExtractTextFromPdfLayer(pdf) {
       }
     }
 
-    // Fallback: Check Letter Section for To <Name>
+    // Fallback for Name: Check Letter Section for To <Name>
     const toIdx = letterLines.findIndex((l) => /^To\b/i.test(l.trim()));
     if (toIdx !== -1 && toIdx < letterLines.length - 1) {
       for (let i = toIdx + 1; i < Math.min(toIdx + 4, letterLines.length); i++) {
@@ -653,72 +655,77 @@ async function autoExtractTextFromPdfLayer(pdf) {
       }
     }
 
-    // 5. Back Card Address
-    let addrRegParts = [];
+    // 5. Back Card Address (Hindi & English 100% Robust Detection)
+    let addrHiParts = [];
     let addrEnParts = [];
-    let inAddrReg = false;
-    let inAddrEn = false;
-
-    const regStartRegex = /(?:पता\s*[:\uff1a]?|ঠিকানা|સરનામું|मुखவரி|చిరునామా|വിಳಾಸ)/i;
-    const enStartRegex = /(?:Address\s*[:\uff1a]?|C\/O\s*[:\uff1a]?|S\/O\s*[:\uff1a]?|W\/O\s*[:\uff1a]?|D\/O\s*[:\uff1a]?|Care of|Son of|Wife of|Daughter of)/i;
-    const stopRegex = /\b\d{4}\s\d{4}\s\d{4}\b|VID\s*[:\uff1a]|www\.uidai|1947|help@uidai/i;
 
     backLines.forEach((line) => {
       let trimmed = line.trim();
       if (!trimmed) return;
-      if (/Unique Identification Authority|भारतीय विशिष्ट पहचान|Government of India|भारत सरकार/i.test(trimmed)) return;
+      // Filter out system and header lines
+      if (/Unique Identification Authority|भारतीय विशिष्ट पहचान प्राधिकरण|Government of India|भारत सरकार|UIDAI|help@|www\.|1947/i.test(trimmed)) return;
       trimmed = trimmed.replace(/Details as on\s*[:\uff1a]?\s*[0-9\/-]+/gi, "").trim();
       if (!trimmed) return;
+      if (/\b\d{4}\s\d{4}\s\d{4}\b|VID\s*[:\uff1a]/i.test(trimmed)) return;
 
-      if (regStartRegex.test(trimmed)) {
-        inAddrReg = true;
-        inAddrEn = false;
-        addrRegParts.push(trimmed);
-      } else if (enStartRegex.test(trimmed) && !/UIDAI|help@|www\./i.test(trimmed)) {
-        inAddrEn = true;
-        inAddrReg = false;
+      // Classify line: Devanagari script belongs to Hindi address
+      if (/[\u0900-\u097F]/.test(trimmed)) {
+        addrHiParts.push(trimmed);
+      } else if (/[A-Za-z]/.test(trimmed)) {
         addrEnParts.push(trimmed);
-      } else if (inAddrReg) {
-        if (stopRegex.test(trimmed) || enStartRegex.test(trimmed)) {
-          inAddrReg = false;
-          if (enStartRegex.test(trimmed)) {
-            inAddrEn = true;
-            addrEnParts.push(trimmed);
-          }
-        } else {
-          addrRegParts.push(trimmed);
-        }
-      } else if (inAddrEn) {
-        if (stopRegex.test(trimmed)) {
-          inAddrEn = false;
-        } else {
-          addrEnParts.push(trimmed);
-        }
       }
     });
 
-    if (addrRegParts.length > 0) {
-      cardData.addressHi = addrRegParts.join(", ");
-    }
-    if (addrEnParts.length > 0) {
-      let fullAddrEn = addrEnParts.join(", ");
-      if (!/^Address/i.test(fullAddrEn)) fullAddrEn = `Address: ${fullAddrEn}`;
-      cardData.addressEn = fullAddrEn;
-    } else if (letterLines.length > 0) {
-      // Fallback: check C/O in letter section
-      let letterAddr = [];
-      let capturing = false;
-      letterLines.forEach((l) => {
-        const t = l.trim();
-        if (/^(?:C\/O|S\/O|W\/O|D\/O|Care of|Son of|Wife of)\b/i.test(t)) capturing = true;
-        if (capturing) {
-          if (stopRegex.test(t) || /(?:Download Date|Issue Date|Mobile)/i.test(t)) capturing = false;
-          else letterAddr.push(t);
+    // Fallback 1: If Hindi address was not found in back box, scan letterLines (top of page 1)
+    if (addrHiParts.length === 0 && letterLines.length > 0) {
+      letterLines.forEach((line) => {
+        const trimmed = line.trim();
+        if (/[\u0900-\u097F]/.test(trimmed) && /(?:पता|आत्मज|पत्नी|सुपुत्र|सुपुत्री|मकान|ग्राम|वार्ड|पोस्ट|तहसील|थाना|जिला|गली|नगर|मोहल्ला|निवासी|मार्ग|पिन)/i.test(trimmed)) {
+          addrHiParts.push(trimmed);
         }
       });
-      if (letterAddr.length > 0) {
-        cardData.addressEn = `Address: ${letterAddr.join(", ")}`;
-      }
+    }
+
+    // Fallback 2: If Hindi address is still empty, scan allLines for Devanagari address words
+    if (addrHiParts.length === 0 && allLines.length > 0) {
+      allLines.forEach((line) => {
+        const trimmed = line.trim();
+        if (/[\u0900-\u097F]/.test(trimmed) && !/भारत सरकार|भारतीय विशिष्ट पहचान प्राधिकरण|मेरा आधार/i.test(trimmed)) {
+          if (/(?:आत्मज|पत्नी|सुपुत्र|सुपुत्री|मकान|ग्राम|वार्ड|पोस्ट|तहसील|थाना|जिला|गली|नगर|मोहल्ला|निवासी)/i.test(trimmed)) {
+            addrHiParts.push(trimmed);
+          }
+        }
+      });
+    }
+
+    // Fallback 3 for English Address: check letterLines (C/O ...)
+    if (addrEnParts.length === 0 && letterLines.length > 0) {
+      let capturingEn = false;
+      letterLines.forEach((l) => {
+        const t = l.trim();
+        if (/^(?:Address|C\/O|S\/O|W\/O|D\/O|Care of|Son of|Wife of)\b/i.test(t)) capturingEn = true;
+        if (capturingEn) {
+          if (/\b\d{4}\s\d{4}\s\d{4}\b|VID\s*[:\uff1a]|(?:Download Date|Issue Date|Mobile)/i.test(t)) {
+            capturingEn = false;
+          } else if (/[A-Za-z]/.test(t)) {
+            addrEnParts.push(t);
+          }
+        }
+      });
+    }
+
+    // Format Hindi Address with standard "पता: " prefix
+    if (addrHiParts.length > 0) {
+      let cleanHi = addrHiParts.join(", ").replace(/\s+,/g, ",").replace(/,+/g, ",");
+      cleanHi = cleanHi.replace(/^पता\s*[:\uff1a]?\s*/i, "").trim();
+      cardData.addressHi = `पता: ${cleanHi}`;
+    }
+
+    // Format English Address with standard "Address: " prefix
+    if (addrEnParts.length > 0) {
+      let cleanEn = addrEnParts.join(", ").replace(/\s+,/g, ",").replace(/,+/g, ",");
+      cleanEn = cleanEn.replace(/^Address\s*[:\uff1a]?\s*/i, "").trim();
+      cardData.addressEn = `Address: ${cleanEn}`;
     }
 
     // 6. Mobile Number
@@ -813,6 +820,14 @@ function setupControls() {
       renderColorCards();
     });
   });
+
+  const fontScaleEl = $("fontScaleSelect");
+  if (fontScaleEl) {
+    fontScaleEl.addEventListener("change", (e) => {
+      fontScale = parseFloat(e.target.value) || 1.15;
+      renderColorCards();
+    });
+  }
 
   $("brightSlider").addEventListener("input", (e) => {
     $("brightVal").textContent = e.target.value;
@@ -948,45 +963,49 @@ function renderFrontCard(canvas, W, H) {
   const tx = (cardCoords.frontText.x / 100) * W;
   let curY = (cardCoords.frontText.nameY / 100) * H;
 
-  // Name (Regional / Hindi)
+  const currentNameSize = Math.round(cardCoords.frontText.nameSize * fontScale);
+  const currentBodySize = Math.round(cardCoords.frontText.bodySize * fontScale);
+
+  // Name (Regional / Hindi) - Extra Large & Bold
   if (cardData.nameHi) {
-    ctx.font = `700 ${cardCoords.frontText.nameSize}px "Noto Sans Devanagari", sans-serif`;
+    ctx.font = `700 ${currentNameSize}px "Noto Sans Devanagari", sans-serif`;
     ctx.fillText(cardData.nameHi, tx, curY);
-    curY += cardCoords.frontText.nameSize + 14;
+    curY += currentNameSize + Math.round(14 * fontScale);
   }
 
-  // Name (English - UPPERCASE)
+  // Name (English - UPPERCASE) - Extra Large & Bold
   if (cardData.nameEn) {
-    ctx.font = `700 ${cardCoords.frontText.nameSize - 2}px "Lato", "Inter", sans-serif`;
+    ctx.font = `700 ${Math.round(currentNameSize * 0.94)}px "Lato", "Inter", sans-serif`;
     ctx.fillText(cardData.nameEn.toUpperCase(), tx, curY);
-    curY += cardCoords.frontText.nameSize + 22;
+    curY += currentNameSize + Math.round(20 * fontScale);
   }
 
-  // DOB
+  // DOB - Extra Large & Bold
   if (cardData.dob) {
     let dobStr = cardData.dob.trim();
     if (!/DOB|जन्म/i.test(dobStr)) {
       dobStr = `जन्म तिथि / DOB: ${dobStr}`;
     }
-    ctx.font = `500 ${cardCoords.frontText.bodySize}px "Noto Sans Devanagari", "Lato", sans-serif`;
+    ctx.font = `600 ${currentBodySize}px "Noto Sans Devanagari", "Lato", sans-serif`;
     ctx.fillText(dobStr, tx, curY);
-    curY += cardCoords.frontText.bodySize + 18;
+    curY += currentBodySize + Math.round(16 * fontScale);
   }
 
-  // Gender
+  // Gender - Extra Large & Bold
   if (cardData.gender) {
     let genStr = cardData.gender.trim();
     if (!/लिंग|Gender/i.test(genStr)) {
       genStr = `लिंग / GENDER: ${genStr}`;
     }
-    ctx.font = `500 ${cardCoords.frontText.bodySize}px "Noto Sans Devanagari", "Lato", sans-serif`;
+    ctx.font = `600 ${currentBodySize}px "Noto Sans Devanagari", "Lato", sans-serif`;
     ctx.fillText(genStr, tx, curY);
-    curY += cardCoords.frontText.bodySize + 18;
+    curY += currentBodySize + Math.round(16 * fontScale);
   }
 
   // Mobile
   if (cardData.mobile) {
-    ctx.font = `400 ${cardCoords.frontText.mobileSize}px "Lato", sans-serif`;
+    const mobSize = Math.round(cardCoords.frontText.mobileSize * fontScale);
+    ctx.font = `600 ${mobSize}px "Lato", sans-serif`;
     let mStr = cardData.mobile.trim();
     if (!/^Mobile/i.test(mStr)) mStr = `Mobile: ${mStr}`;
     ctx.fillText(mStr, tx, curY);
@@ -999,9 +1018,10 @@ function renderFrontCard(canvas, W, H) {
     if (numStyle === "bold-navy") numColor = "#1e3a8a";
     if (numStyle === "bold-black") numColor = "#0f172a";
 
+    const currentAadhaarSize = Math.round(cardCoords.frontText.aadhaarSize * fontScale);
     ctx.save();
     ctx.fillStyle = numColor;
-    ctx.font = `700 ${cardCoords.frontText.aadhaarSize}px "Lato", "Poppins", sans-serif`;
+    ctx.font = `700 ${currentAadhaarSize}px "Lato", "Poppins", sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(cardData.aadhaarNo, W / 2, (cardCoords.frontText.aadhaarY / 100) * H);
     ctx.restore();
@@ -1009,9 +1029,10 @@ function renderFrontCard(canvas, W, H) {
 
   // VID Number
   if (cardData.vidNo) {
+    const currentVidSize = Math.round(cardCoords.frontText.vidSize * fontScale);
     ctx.save();
     ctx.fillStyle = "#334155";
-    ctx.font = `600 ${cardCoords.frontText.vidSize}px "Lato", sans-serif`;
+    ctx.font = `600 ${currentVidSize}px "Lato", sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(cardData.vidNo, W / 2, (cardCoords.frontText.vidY / 100) * H);
     ctx.restore();
@@ -1049,22 +1070,23 @@ function renderBackCard(canvas, W, H) {
   const bx = (cardCoords.backText.addrX / 100) * W;
   const maxW = (cardCoords.backText.addrW / 100) * W;
   let curBackY = (cardCoords.backText.addrRegY / 100) * H;
+  const currentAddrSize = Math.round(cardCoords.backText.addrSize * fontScale);
 
-  // 2. Hindi / Regional Address
+  // 2. Hindi / Regional Address - Extra Large & Clean Bold
   if (cardData.addressHi && cardData.addressHi.trim()) {
-    ctx.font = `400 ${cardCoords.backText.addrSize}px "Noto Sans Devanagari", sans-serif`;
-    curBackY = wrapTextLines(ctx, cardData.addressHi.trim(), bx, curBackY, maxW, cardCoords.backText.addrSize * 1.35);
-    curBackY += 24;
+    ctx.font = `600 ${currentAddrSize}px "Noto Sans Devanagari", sans-serif`;
+    curBackY = wrapTextLines(ctx, cardData.addressHi.trim(), bx, curBackY, maxW, currentAddrSize * 1.35);
+    curBackY += Math.round(22 * fontScale);
   }
 
-  // 3. English Address
+  // 3. English Address - Extra Large & Clean Bold
   if (cardData.addressEn && cardData.addressEn.trim()) {
     let enAddr = cardData.addressEn.trim();
     if (!/^(?:Address|पता)/i.test(enAddr)) {
       enAddr = `Address: ${enAddr}`;
     }
-    ctx.font = `400 ${cardCoords.backText.addrSize}px "Lato", sans-serif`;
-    wrapTextLines(ctx, enAddr, bx, curBackY, maxW, cardCoords.backText.addrSize * 1.35);
+    ctx.font = `600 ${Math.round(currentAddrSize * 0.96)}px "Lato", "Inter", sans-serif`;
+    wrapTextLines(ctx, enAddr, bx, curBackY, maxW, currentAddrSize * 1.34);
   }
 
   // 4. Square High-Contrast QR Code (Right)
@@ -1090,18 +1112,20 @@ function renderBackCard(canvas, W, H) {
     if (numStyle === "bold-navy") numColor = "#1e3a8a";
     if (numStyle === "bold-black") numColor = "#0f172a";
 
+    const currentAadhaarSize = Math.round(cardCoords.backText.aadhaarSize * fontScale);
     ctx.save();
     ctx.fillStyle = numColor;
-    ctx.font = `700 ${cardCoords.backText.aadhaarSize}px "Lato", "Poppins", sans-serif`;
+    ctx.font = `700 ${currentAadhaarSize}px "Lato", "Poppins", sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(cardData.aadhaarNo, W / 2, (cardCoords.backText.aadhaarY / 100) * H);
     ctx.restore();
   }
 
   if (cardData.vidNo) {
+    const currentVidSize = Math.round(cardCoords.backText.vidSize * fontScale);
     ctx.save();
     ctx.fillStyle = "#334155";
-    ctx.font = `600 ${cardCoords.backText.vidSize}px "Lato", sans-serif`;
+    ctx.font = `600 ${currentVidSize}px "Lato", sans-serif`;
     ctx.textAlign = "center";
     ctx.fillText(cardData.vidNo, W / 2, (cardCoords.backText.vidY / 100) * H);
     ctx.restore();
